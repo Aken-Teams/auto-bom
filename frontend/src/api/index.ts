@@ -116,6 +116,9 @@ export const autoMatchCans = (taskId: number) =>
 export const updateTaskItem = (taskId: number, itemId: number, data: TaskItem) =>
   api.put(`/tasks/${taskId}/items/${itemId}`, data)
 
+export const generateCmaxList = (taskId: number) =>
+  api.post<{ status: string; item_count: number }>(`/tasks/${taskId}/generate-cmax`)
+
 export const generateFiles = (taskId: number) =>
   api.post<{ status: string; files: Record<string, string> }>(`/tasks/${taskId}/generate`)
 

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, ArrowRight, Download, CheckCircle, Loader2, FileText } from 'lucide-react'
+import { generateCmaxList, getDownloadUrl } from '../../api'
 import type { TaskItem } from '../../api'
 
 interface Props {
@@ -11,18 +12,22 @@ interface Props {
   onNextPhase: () => void
 }
 
-export default function StepExportList({ taskId: _taskId, items, onBack, onError: _onError, onNextPhase }: Props) {
+export default function StepExportList({ taskId, items, onBack, onError, onNextPhase }: Props) {
   const { t } = useTranslation()
   const [generating, setGenerating] = useState(false)
   const [completed, setCompleted] = useState(false)
 
   const handleGenerate = async () => {
     setGenerating(true)
-    // TODO: call backend to generate C-CMAX import list
-    // For now simulate with a short delay
-    await new Promise((r) => setTimeout(r, 800))
-    setCompleted(true)
-    setGenerating(false)
+    try {
+      await generateCmaxList(taskId)
+      setCompleted(true)
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail || err?.message || t('toast.uploadFailed')
+      onError?.(msg)
+    } finally {
+      setGenerating(false)
+    }
   }
 
   return (
@@ -79,10 +84,13 @@ export default function StepExportList({ taskId: _taskId, items, onBack, onError
           </div>
 
           <div className="flex items-center justify-center gap-3">
-            <button className="flex items-center gap-2 px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-sm hover:bg-slate-50 transition-colors">
+            <a
+              href={getDownloadUrl(taskId, 'cmax')}
+              className="flex items-center gap-2 px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-sm hover:bg-slate-50 transition-colors"
+            >
               <Download size={16} />
               {t('exportList.download')}
-            </button>
+            </a>
             <button
               onClick={onNextPhase}
               className="flex items-center gap-2 px-6 py-2.5 bg-primary-600 text-white rounded-lg font-medium text-sm hover:bg-primary-700 transition-colors"

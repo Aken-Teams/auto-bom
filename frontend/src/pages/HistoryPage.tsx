@@ -65,22 +65,30 @@ export default function HistoryPage() {
                   </div>
                 </div>
 
-                {/* Output download buttons */}
-                {task.status === 'completed' && (
-                  <div className="flex gap-1 shrink-0">
-                    {['bom', 'routing', 'sequence'].map((type) => (
-                      <a
-                        key={type}
-                        href={getDownloadUrl(task.id, type)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                      >
-                        <Download size={13} />
-                        {type}
-                      </a>
-                    ))}
-                  </div>
-                )}
+                {/* Download buttons */}
+                <div className="flex gap-1 shrink-0 flex-wrap justify-end">
+                  {(task as any).has_cmax && (
+                    <a
+                      href={getDownloadUrl(task.id, 'cmax')}
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
+                    >
+                      <Download size={13} />
+                      C-CMAX
+                    </a>
+                  )}
+                  {(task as any).has_output && ['bom', 'routing', 'sequence'].map((type) => (
+                    <a
+                      key={type}
+                      href={getDownloadUrl(task.id, type)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                    >
+                      <Download size={13} />
+                      {type}
+                    </a>
+                  ))}
+                </div>
 
                 {expandedId === task.id
                   ? <ChevronUp size={18} className="text-slate-400 shrink-0" />

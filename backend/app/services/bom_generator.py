@@ -1,4 +1,4 @@
-"""Generate the 3 output Excel files from C-CMAX list + std operations."""
+"""Generate output Excel files: C-CMAX import list + 3 ERP upload files."""
 from pathlib import Path
 from datetime import datetime
 from openpyxl import Workbook
@@ -30,6 +30,83 @@ def _style_row(ws, row_idx: int, col_count: int):
         cell = ws.cell(row=row_idx, column=col)
         cell.font = CELL_FONT
         cell.border = THIN_BORDER
+
+
+def generate_cmax_list(items: list[dict], output_dir: Path) -> str:
+    """Generate C-CMAX import list Excel file (料号清单 + 罐头 sheets)."""
+    wb = Workbook()
+
+    # --- Sheet 1: 料号清单 ---
+    ws1 = wb.active
+    ws1.title = "料号清单"
+    headers1 = [
+        "料号", "摘要", "内规文件编号", "大分类", "中分类",
+        "替代结构", "TYPE", "FAMILY", "PACKAGE", "LINE", "FUNCTION",
+        "原件", "原件摘要",
+        "焊接罐头", "成型罐头", "包装罐头",
+    ]
+    _style_header(ws1, headers1)
+
+    for idx, item in enumerate(items, 2):
+        row_data = [
+            item.get("item_no", ""),
+            item.get("summary", ""),
+            item.get("doc_no", ""),
+            item.get("category_l", ""),
+            item.get("category_m", ""),
+            item.get("alt_structure", ""),
+            item.get("type_name", ""),
+            item.get("family", ""),
+            item.get("package", ""),
+            item.get("line", ""),
+            item.get("function", ""),
+            item.get("component", ""),
+            item.get("component_summary", ""),
+            item.get("weld_can", ""),
+            item.get("mold_can", ""),
+            item.get("pack_can", ""),
+        ]
+        for col, val in enumerate(row_data, 1):
+            ws1.cell(row=idx, column=col, value=val)
+        _style_row(ws1, idx, len(headers1))
+
+    for col in range(1, len(headers1) + 1):
+        ws1.column_dimensions[chr(64 + col) if col < 27 else "A" + chr(64 + col - 26)].width = 18
+
+    # --- Sheet 2: 罐头 (unique can mappings) ---
+    ws2 = wb.create_sheet("罐头")
+    headers2 = [
+        "FUNCTION", "原件(WAF)", "焊接罐头", "焊接罐头摘要",
+        "成型罐头", "成型罐头摘要", "包装罐头", "包装罐头摘要",
+    ]
+    _style_header(ws2, headers2)
+
+    seen_cans = set()
+    can_row = 2
+    for item in items:
+        comp = item.get("component", "")
+        if not comp or comp in seen_cans:
+            continue
+        seen_cans.add(comp)
+        ws2.cell(row=can_row, column=1, value=item.get("function", ""))
+        ws2.cell(row=can_row, column=2, value=comp)
+        ws2.cell(row=can_row, column=3, value=item.get("weld_can", ""))
+        ws2.cell(row=can_row, column=4, value="")
+        ws2.cell(row=can_row, column=5, value=item.get("mold_can", ""))
+        ws2.cell(row=can_row, column=6, value="")
+        ws2.cell(row=can_row, column=7, value=item.get("pack_can", ""))
+        ws2.cell(row=can_row, column=8, value="")
+        _style_row(ws2, can_row, len(headers2))
+        can_row += 1
+
+    for col in range(1, len(headers2) + 1):
+        ws2.column_dimensions[chr(64 + col)].width = 20
+
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"C-CMAX_import_list_{ts}.xlsx"
+    filepath = output_dir / filename
+    wb.save(str(filepath))
+    return str(filepath)
 
 
 def generate_bom_loader(items: list[dict], output_dir: Path) -> str:

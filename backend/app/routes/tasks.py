@@ -8,7 +8,7 @@ from app.database import get_db
 from app.config import OUTPUT_DIR
 from app.models.tables import BomTask, BomTaskItem, CanTemplate, UploadRecord
 from app.services.bom_generator import (
-    generate_bom_loader, generate_routings, generate_sequences,
+    generate_cmax_list, generate_bom_loader, generate_routings, generate_sequences,
 )
 from app.services.excel_parser import parse_std_operations
 
@@ -79,9 +79,8 @@ def list_tasks(db: Session = Depends(get_db)):
             "item_count": t.item_count,
             "created_at": t.created_at.isoformat() if t.created_at else None,
             "completed_at": t.completed_at.isoformat() if t.completed_at else None,
-            "output_bom_path": t.output_bom_path,
-            "output_routing_path": t.output_routing_path,
-            "output_sequence_path": t.output_sequence_path,
+            "has_cmax": bool(t.output_cmax_path),
+            "has_output": bool(t.output_bom_path),
             "bom_upload": bom_upload,
             "std_upload": std_upload,
         })
@@ -181,6 +180,40 @@ def update_item(task_id: int, item_id: int, data: TaskItemCreate, db: Session = 
     return {"ok": True}
 
 
+@router.post("/{task_id}/generate-cmax")
+def generate_cmax(task_id: int, db: Session = Depends(get_db)):
+    """Generate C-CMAX import list for a task (Phase 1 output)."""
+    task = db.query(BomTask).filter_by(id=task_id).first()
+    if not task:
+        raise HTTPException(404, "Task not found")
+
+    items = db.query(BomTaskItem).filter_by(task_id=task_id).all()
+    if not items:
+        raise HTTPException(400, "No items in task")
+
+    item_dicts = [
+        {
+            "item_no": i.item_no, "summary": i.summary, "doc_no": i.doc_no,
+            "category_l": "半成品", "category_m": "自製",
+            "alt_structure": i.alt_structure, "type_name": i.type_name,
+            "family": i.family, "package": i.package, "line": i.line,
+            "function": i.function, "component": i.component,
+            "component_summary": i.component_summary,
+            "weld_can": i.weld_can, "mold_can": i.mold_can, "pack_can": i.pack_can,
+        }
+        for i in items
+    ]
+
+    task_output_dir = OUTPUT_DIR / f"task_{task_id}"
+    task_output_dir.mkdir(exist_ok=True)
+
+    cmax_path = generate_cmax_list(item_dicts, task_output_dir)
+    task.output_cmax_path = cmax_path
+    db.commit()
+
+    return {"status": "ok", "path": cmax_path, "item_count": len(item_dicts)}
+
+
 @router.post("/{task_id}/generate")
 def generate_files(task_id: int, db: Session = Depends(get_db)):
     """Generate the 3 output files for a task."""
@@ -249,12 +282,13 @@ def generate_files(task_id: int, db: Session = Depends(get_db)):
 
 @router.get("/{task_id}/download/{file_type}")
 def download_file(task_id: int, file_type: str, db: Session = Depends(get_db)):
-    """Download a generated file. file_type: bom | routing | sequence"""
+    """Download a generated file. file_type: cmax | bom | routing | sequence"""
     task = db.query(BomTask).filter_by(id=task_id).first()
     if not task:
         raise HTTPException(404, "Task not found")
 
     path_map = {
+        "cmax": task.output_cmax_path,
         "bom": task.output_bom_path,
         "routing": task.output_routing_path,
         "sequence": task.output_sequence_path,
