@@ -52,6 +52,14 @@ export interface Task {
   items?: TaskItem[]
 }
 
+export interface PaginatedResponse<T> {
+  items: T[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
 export interface CanTemplate {
   id: number
   function: string
@@ -103,7 +111,11 @@ export const getUploadRecords = () => api.get('/upload/records')
 export const createTask = (name: string, upload_id?: number) =>
   api.post<{ id: number; name: string; status: string }>('/tasks', { name, upload_id })
 
-export const getTasks = () => api.get<Task[]>('/tasks')
+export const getTasks = (page = 1, pageSize = 10) =>
+  api.get<PaginatedResponse<Task>>('/tasks', { params: { page, page_size: pageSize } })
+
+export const deleteTask = (taskId: number) =>
+  api.delete<{ ok: boolean; deleted_task_id: number }>(`/tasks/${taskId}`)
 
 export const getTask = (id: number) => api.get<Task>(`/tasks/${id}`)
 

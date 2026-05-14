@@ -1,11 +1,13 @@
 """BOM task management routes."""
+import shutil
 from datetime import datetime
+from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.config import OUTPUT_DIR
+from app.config import UPLOAD_DIR, OUTPUT_DIR
 from app.models.tables import BomTask, BomTaskItem, CanTemplate, UploadRecord
 from app.services.bom_generator import (
     generate_cmax_list, generate_bom_loader, generate_routings, generate_sequences,
@@ -48,12 +50,33 @@ def create_task(data: TaskCreate, db: Session = Depends(get_db)):
     db.add(task)
     db.commit()
     db.refresh(task)
+
+    # Move associated BOM base upload file into task-specific directory
+    if data.upload_id:
+        upload_rec = db.query(UploadRecord).filter_by(id=data.upload_id).first()
+        if upload_rec and upload_rec.file_path:
+            old_path = Path(upload_rec.file_path)
+            if old_path.exists():
+                task_upload_dir = UPLOAD_DIR / f"task_{task.id}"
+                task_upload_dir.mkdir(exist_ok=True)
+                new_path = task_upload_dir / old_path.name
+                shutil.move(str(old_path), str(new_path))
+                upload_rec.file_path = str(new_path)
+                db.commit()
+
     return {"id": task.id, "name": task.name, "status": task.status}
 
 
 @router.get("")
-def list_tasks(db: Session = Depends(get_db)):
-    tasks = db.query(BomTask).order_by(BomTask.created_at.desc()).all()
+def list_tasks(page: int = 1, page_size: int = 10, db: Session = Depends(get_db)):
+    total = db.query(BomTask).count()
+    tasks = (
+        db.query(BomTask)
+        .order_by(BomTask.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
     result = []
     for t in tasks:
         # Get associated BOM base upload
@@ -84,7 +107,13 @@ def list_tasks(db: Session = Depends(get_db)):
             "bom_upload": bom_upload,
             "std_upload": std_upload,
         })
-    return result
+    return {
+        "items": result,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": max(1, (total + page_size - 1) // page_size),
+    }
 
 
 @router.get("/{task_id}")
@@ -298,3 +327,39 @@ def download_file(task_id: int, file_type: str, db: Session = Depends(get_db)):
         raise HTTPException(404, "File not found")
 
     return FileResponse(path, filename=path.split("/")[-1].split("\\")[-1])
+
+
+@router.delete("/{task_id}")
+def delete_task(task_id: int, db: Session = Depends(get_db)):
+    """Delete a task and all associated files (uploads + outputs)."""
+    task = db.query(BomTask).filter_by(id=task_id).first()
+    if not task:
+        raise HTTPException(404, "Task not found")
+
+    # 1. Delete output directory: outputs/task_{id}/
+    task_output_dir = OUTPUT_DIR / f"task_{task_id}"
+    if task_output_dir.exists():
+        shutil.rmtree(task_output_dir)
+
+    # 2. Delete upload directory: uploads/task_{id}/
+    task_upload_dir = UPLOAD_DIR / f"task_{task_id}"
+    if task_upload_dir.exists():
+        shutil.rmtree(task_upload_dir)
+
+    # 3. Delete associated upload record and its legacy flat file
+    if task.upload_id:
+        upload_rec = db.query(UploadRecord).filter_by(id=task.upload_id).first()
+        if upload_rec:
+            old_path = Path(upload_rec.file_path)
+            if old_path.exists():
+                old_path.unlink(missing_ok=True)
+            db.delete(upload_rec)
+
+    # 4. Delete all task items
+    db.query(BomTaskItem).filter_by(task_id=task_id).delete()
+
+    # 5. Delete the task
+    db.delete(task)
+    db.commit()
+
+    return {"ok": True, "deleted_task_id": task_id}

@@ -131,6 +131,16 @@
     "completed": "Completed",
     "failed": "Failed",
     "view": "View",
-    "download": "Download"
+    "download": "Download",
+    "delete": "Delete",
+    "deleteConfirmTitle": "Confirm Delete",
+    "deleteConfirmMsg": "Are you sure you want to delete this task? All associated files will be permanently deleted. This action cannot be undone.",
+    "deleteSuccess": "Task deleted",
+    "deleteFailed": "Delete failed",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "showing": "Showing {{from}}-{{to}} of {{total}}",
+    "prev": "Previous",
+    "next": "Next"
   }
 }
