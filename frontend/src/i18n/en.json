@@ -26,7 +26,7 @@
   },
   "upload": {
     "title": "Upload BOM Base",
-    "bomBase": "MBU2 BOM Base",
+    "bomBase": "BOM Base",
     "bomBaseDesc": "Upload BOM base (WXBMR005) Excel file",
     "canTemplate": "Can Template",
     "canTemplateDesc": "Upload Excel file with can template mapping (optional, for auto-matching)",

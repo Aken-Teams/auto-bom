@@ -26,7 +26,7 @@
   },
   "upload": {
     "title": "上傳 BOM 底稿",
-    "bomBase": "MBU2 BOM 底稿",
+    "bomBase": "BOM 底稿",
     "bomBaseDesc": "上傳 BOM 底稿 (WXBMR005) Excel 文件",
     "canTemplate": "罐頭對照表",
     "canTemplateDesc": "上傳含罐頭對照表的 Excel 文件（可選，用於自動匹配）",
