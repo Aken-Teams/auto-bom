@@ -74,9 +74,19 @@ def upload_can_template(file: UploadFile = File(...), db: Session = Depends(get_
                 setattr(existing, k, v)
         else:
             db.add(CanTemplate(**t))
-    db.commit()
 
-    return {"count": len(templates), "templates": templates}
+    # Save upload record
+    record = UploadRecord(
+        filename=file.filename,
+        file_path=str(save_path),
+        file_type="can_template",
+        row_count=len(templates),
+    )
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+
+    return {"id": record.id, "count": len(templates), "templates": templates}
 
 
 @router.post("/std-operations")

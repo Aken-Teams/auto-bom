@@ -24,6 +24,8 @@ class BomTask(Base):
     name: Mapped[str] = mapped_column(String(255))
     status: Mapped[str] = mapped_column(String(20), default="draft", comment="draft | processing | completed | failed")
     upload_id: Mapped[int] = mapped_column(Integer, nullable=True)
+    can_upload_id: Mapped[int] = mapped_column(Integer, nullable=True)
+    std_upload_id: Mapped[int] = mapped_column(Integer, nullable=True)
     item_count: Mapped[int] = mapped_column(Integer, default=0)
     output_cmax_path: Mapped[str] = mapped_column(String(500), nullable=True)
     output_bom_path: Mapped[str] = mapped_column(String(500), nullable=True)

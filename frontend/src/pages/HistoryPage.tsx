@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Download, FileSpreadsheet, Database, ChevronDown, ChevronUp,
+  Download, FileSpreadsheet, Database, Package, ChevronDown, ChevronUp,
   Trash2, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import clsx from 'clsx'
@@ -13,6 +13,7 @@ import Toast from '../components/Toast'
 interface TaskWithUploads extends Task {
   bom_upload?: { filename: string; row_count: number; uploaded_at: string } | null
   std_upload?: { filename: string; row_count: number; uploaded_at: string } | null
+  can_upload?: { filename: string; row_count: number; uploaded_at: string } | null
 }
 
 export default function HistoryPage() {
@@ -160,7 +161,7 @@ export default function HistoryPage() {
                     <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
                       {t('history.sourceFiles')}
                     </h4>
-                    <div className="grid gap-3 md:grid-cols-2">
+                    <div className="grid gap-3 md:grid-cols-3">
                       {/* BOM base upload */}
                       <div className="flex items-start gap-3 bg-white rounded-lg px-4 py-3 border border-slate-200">
                         <FileSpreadsheet size={18} className="text-blue-500 mt-0.5 shrink-0" />
@@ -173,6 +174,26 @@ export default function HistoryPage() {
                               <div className="text-sm text-slate-800 truncate">{task.bom_upload.filename}</div>
                               <div className="text-xs text-slate-400">
                                 {task.bom_upload.row_count.toLocaleString()} {t('upload.rows')}
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-sm text-slate-400">-</div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Can template upload */}
+                      <div className="flex items-start gap-3 bg-white rounded-lg px-4 py-3 border border-slate-200">
+                        <Package size={18} className="text-green-500 mt-0.5 shrink-0" />
+                        <div className="min-w-0">
+                          <div className="text-xs font-medium text-slate-500 mb-0.5">
+                            {t('history.fileType_can_template')}
+                          </div>
+                          {task.can_upload ? (
+                            <>
+                              <div className="text-sm text-slate-800 truncate">{task.can_upload.filename}</div>
+                              <div className="text-xs text-slate-400">
+                                {task.can_upload.row_count.toLocaleString()} {t('upload.rows')}
                               </div>
                             </>
                           ) : (

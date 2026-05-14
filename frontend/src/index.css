@@ -16,7 +16,7 @@
 
 body {
   margin: 0;
-  font-family: "Inter", "Noto Sans SC", "Noto Sans TC", system-ui, sans-serif;
+  font-family: "Inter", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Noto Sans TC", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

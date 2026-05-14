@@ -4,7 +4,7 @@ import zhCN from './zh-CN.json'
 import zhTW from './zh-TW.json'
 import en from './en.json'
 
-const saved = localStorage.getItem('lang') || 'zh-TW'
+const saved = localStorage.getItem('lang') || 'zh-CN'
 
 i18n.use(initReactI18next).init({
   resources: {
@@ -13,7 +13,7 @@ i18n.use(initReactI18next).init({
     en: { translation: en },
   },
   lng: saved,
-  fallbackLng: 'zh-TW',
+  fallbackLng: 'zh-CN',
   interpolation: { escapeValue: false },
 })
 

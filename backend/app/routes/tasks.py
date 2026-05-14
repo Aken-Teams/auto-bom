@@ -17,6 +17,17 @@ from app.services.excel_parser import parse_std_operations
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
 
+def _move_upload_file(db: Session, upload_id: int, task_dir: Path):
+    """Move an upload file into a task-specific directory."""
+    rec = db.query(UploadRecord).filter_by(id=upload_id).first()
+    if rec and rec.file_path:
+        old_path = Path(rec.file_path)
+        if old_path.exists():
+            new_path = task_dir / old_path.name
+            shutil.move(str(old_path), str(new_path))
+            rec.file_path = str(new_path)
+
+
 def _item_to_dict(i: BomTaskItem) -> dict:
     """Convert a BomTaskItem to a dict with all fields for generators."""
     return {
@@ -33,6 +44,7 @@ def _item_to_dict(i: BomTaskItem) -> dict:
 class TaskCreate(BaseModel):
     name: str
     upload_id: int | None = None
+    can_upload_id: int | None = None
 
 
 class TaskItemCreate(BaseModel):
@@ -59,24 +71,23 @@ class CanMatchRequest(BaseModel):
 
 @router.post("")
 def create_task(data: TaskCreate, db: Session = Depends(get_db)):
-    task = BomTask(name=data.name, upload_id=data.upload_id)
+    task = BomTask(name=data.name, upload_id=data.upload_id, can_upload_id=data.can_upload_id)
     db.add(task)
     db.commit()
     db.refresh(task)
 
+    task_upload_dir = UPLOAD_DIR / f"task_{task.id}"
+    task_upload_dir.mkdir(exist_ok=True)
+
     # Move associated BOM base upload file into task-specific directory
     if data.upload_id:
-        upload_rec = db.query(UploadRecord).filter_by(id=data.upload_id).first()
-        if upload_rec and upload_rec.file_path:
-            old_path = Path(upload_rec.file_path)
-            if old_path.exists():
-                task_upload_dir = UPLOAD_DIR / f"task_{task.id}"
-                task_upload_dir.mkdir(exist_ok=True)
-                new_path = task_upload_dir / old_path.name
-                shutil.move(str(old_path), str(new_path))
-                upload_rec.file_path = str(new_path)
-                db.commit()
+        _move_upload_file(db, data.upload_id, task_upload_dir)
 
+    # Move associated can template upload file into task-specific directory
+    if data.can_upload_id:
+        _move_upload_file(db, data.can_upload_id, task_upload_dir)
+
+    db.commit()
     return {"id": task.id, "name": task.name, "status": task.status}
 
 
@@ -108,6 +119,15 @@ def list_tasks(page: int = 1, page_size: int = 10, db: Session = Depends(get_db)
         if std_rec:
             std_upload = {"filename": std_rec.filename, "row_count": std_rec.row_count, "uploaded_at": std_rec.uploaded_at.isoformat() if std_rec.uploaded_at else None}
 
+        # Get the can template upload used (latest before task creation)
+        can_upload = None
+        can_rec = db.query(UploadRecord).filter(
+            UploadRecord.file_type == "can_template",
+            UploadRecord.uploaded_at <= t.created_at if t.created_at else True,
+        ).order_by(UploadRecord.uploaded_at.desc()).first()
+        if can_rec:
+            can_upload = {"filename": can_rec.filename, "row_count": can_rec.row_count, "uploaded_at": can_rec.uploaded_at.isoformat() if can_rec.uploaded_at else None}
+
         result.append({
             "id": t.id,
             "name": t.name,
@@ -119,6 +139,7 @@ def list_tasks(page: int = 1, page_size: int = 10, db: Session = Depends(get_db)
             "has_output": bool(t.output_bom_path),
             "bom_upload": bom_upload,
             "std_upload": std_upload,
+            "can_upload": can_upload,
         })
     return {
         "items": result,
@@ -272,6 +293,12 @@ def generate_files(task_id: int, db: Session = Depends(get_db)):
             if seq not in std_ops:
                 std_ops[seq] = op["op_id"]
 
+        # Move std_ops file into task upload directory
+        task_upload_dir = UPLOAD_DIR / f"task_{task_id}"
+        task_upload_dir.mkdir(exist_ok=True)
+        _move_upload_file(db, std_record.id, task_upload_dir)
+        task.std_upload_id = std_record.id
+
     try:
         task_output_dir = OUTPUT_DIR / f"task_{task_id}"
         task_output_dir.mkdir(exist_ok=True)
@@ -338,14 +365,15 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
     if task_upload_dir.exists():
         shutil.rmtree(task_upload_dir)
 
-    # 3. Delete associated upload record and its legacy flat file
-    if task.upload_id:
-        upload_rec = db.query(UploadRecord).filter_by(id=task.upload_id).first()
-        if upload_rec:
-            old_path = Path(upload_rec.file_path)
-            if old_path.exists():
-                old_path.unlink(missing_ok=True)
-            db.delete(upload_rec)
+    # 3. Delete associated upload records and legacy flat files
+    for uid in [task.upload_id, task.can_upload_id, task.std_upload_id]:
+        if uid:
+            upload_rec = db.query(UploadRecord).filter_by(id=uid).first()
+            if upload_rec:
+                old_path = Path(upload_rec.file_path)
+                if old_path.exists():
+                    old_path.unlink(missing_ok=True)
+                db.delete(upload_rec)
 
     # 4. Delete all task items
     db.query(BomTaskItem).filter_by(task_id=task_id).delete()

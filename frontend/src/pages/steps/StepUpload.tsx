@@ -6,7 +6,7 @@ import { uploadBomBase, uploadCanTemplate } from '../../api'
 import type { BomItem } from '../../api'
 
 interface Props {
-  onComplete: (items: BomItem[], uploadId: number) => void
+  onComplete: (items: BomItem[], uploadId: number, canUploadId?: number) => void
   onError?: (msg: string) => void
 }
 
@@ -16,6 +16,7 @@ export default function StepUpload({ onComplete, onError }: Props) {
   const [canResult, setCanResult] = useState<{ filename: string; row_count: number } | null>(null)
   const [bomItems, setBomItems] = useState<BomItem[]>([])
   const [uploadId, setUploadId] = useState<number>(0)
+  const [canUploadId, setCanUploadId] = useState<number | undefined>(undefined)
 
   return (
     <div>
@@ -42,7 +43,8 @@ export default function StepUpload({ onComplete, onError }: Props) {
           onError={onError}
           onUpload={async (file) => {
             const res = await uploadCanTemplate(file)
-            setCanResult({ filename: '罐头模板', row_count: res.data.count })
+            setCanResult({ filename: res.data.id ? file.name : '罐头模板', row_count: res.data.count })
+            setCanUploadId(res.data.id)
           }}
         />
       </div>
@@ -50,7 +52,7 @@ export default function StepUpload({ onComplete, onError }: Props) {
       <div className="flex justify-end">
         <button
           disabled={!bomResult}
-          onClick={() => onComplete(bomItems, uploadId)}
+          onClick={() => onComplete(bomItems, uploadId, canUploadId)}
           className="flex items-center gap-2 px-6 py-2.5 bg-primary-600 text-white rounded-lg font-medium text-sm hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           {t('upload.next')}

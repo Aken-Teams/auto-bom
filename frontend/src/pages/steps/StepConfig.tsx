@@ -8,12 +8,13 @@ import type { TaskItem } from '../../api'
 interface Props {
   items: TaskItem[]
   uploadId: number | null
+  canUploadId: number | null
   onBack: () => void
   onError?: (msg: string) => void
   onComplete: (taskId: number, items: TaskItem[]) => void
 }
 
-export default function StepConfig({ items, uploadId, onBack, onError: _onError, onComplete }: Props) {
+export default function StepConfig({ items, uploadId, canUploadId, onBack, onError: _onError, onComplete }: Props) {
   const { t } = useTranslation()
   const [taskItems, setTaskItems] = useState<TaskItem[]>(items)
   const [matching, setMatching] = useState(false)
@@ -27,7 +28,7 @@ export default function StepConfig({ items, uploadId, onBack, onError: _onError,
       let tid = taskId
       if (!tid) {
         const ts = new Date().toISOString().slice(0, 16).replace('T', ' ')
-        const res = await createTask(`BOM Task ${ts}`, uploadId ?? undefined)
+        const res = await createTask(`BOM Task ${ts}`, uploadId ?? undefined, canUploadId ?? undefined)
         tid = res.data.id
         setTaskId(tid)
         await addTaskItems(tid, taskItems)
@@ -58,7 +59,7 @@ export default function StepConfig({ items, uploadId, onBack, onError: _onError,
     let tid = taskId
     if (!tid) {
       const ts = new Date().toISOString().slice(0, 16).replace('T', ' ')
-      const res = await createTask(`BOM Task ${ts}`, uploadId ?? undefined)
+      const res = await createTask(`BOM Task ${ts}`, uploadId ?? undefined, canUploadId ?? undefined)
       tid = res.data.id
       setTaskId(tid)
       await addTaskItems(tid, taskItems)

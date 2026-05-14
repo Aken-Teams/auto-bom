@@ -12,7 +12,9 @@ export default function WizardPage() {
   const [step, setStep] = useState(0)
   const [bomItems, setBomItems] = useState<BomItem[]>([])
   const [uploadId, setUploadId] = useState<number | null>(null)
+  const [canUploadId, setCanUploadId] = useState<number | null>(null)
   const [selectedItems, setSelectedItems] = useState<TaskItem[]>([])
+
   const [taskId, setTaskId] = useState<number | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
@@ -38,9 +40,10 @@ export default function WizardPage() {
         {step === 0 && (
           <StepUpload
             onError={showError}
-            onComplete={(items, uid) => {
+            onComplete={(items, uid, canUid) => {
               setBomItems(items)
               setUploadId(uid)
+              setCanUploadId(canUid ?? null)
               setStep(1)
             }}
           />
@@ -63,6 +66,7 @@ export default function WizardPage() {
           <StepConfig
             items={selectedItems}
             uploadId={uploadId}
+            canUploadId={canUploadId}
             onError={showError}
             onBack={() => setStep(1)}
             onComplete={(tid, updatedItems) => {

@@ -97,7 +97,7 @@ export const uploadStdOps = (file: File) => {
 export const uploadCanTemplate = (file: File) => {
   const fd = new FormData()
   fd.append('file', file)
-  return api.post<{ count: number; templates: CanTemplate[] }>(
+  return api.post<{ id: number; count: number; templates: CanTemplate[] }>(
     '/upload/can-template',
     fd,
   )
@@ -108,8 +108,8 @@ export const getCanTemplates = () => api.get<CanTemplate[]>('/upload/can-templat
 export const getUploadRecords = () => api.get('/upload/records')
 
 // Tasks
-export const createTask = (name: string, upload_id?: number) =>
-  api.post<{ id: number; name: string; status: string }>('/tasks', { name, upload_id })
+export const createTask = (name: string, upload_id?: number, can_upload_id?: number) =>
+  api.post<{ id: number; name: string; status: string }>('/tasks', { name, upload_id, can_upload_id })
 
 export const getTasks = (page = 1, pageSize = 10) =>
   api.get<PaginatedResponse<Task>>('/tasks', { params: { page, page_size: pageSize } })
