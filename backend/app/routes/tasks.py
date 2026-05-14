@@ -54,8 +54,25 @@ def create_task(data: TaskCreate, db: Session = Depends(get_db)):
 @router.get("")
 def list_tasks(db: Session = Depends(get_db)):
     tasks = db.query(BomTask).order_by(BomTask.created_at.desc()).all()
-    return [
-        {
+    result = []
+    for t in tasks:
+        # Get associated BOM base upload
+        bom_upload = None
+        if t.upload_id:
+            rec = db.query(UploadRecord).filter_by(id=t.upload_id).first()
+            if rec:
+                bom_upload = {"filename": rec.filename, "row_count": rec.row_count, "uploaded_at": rec.uploaded_at.isoformat() if rec.uploaded_at else None}
+
+        # Get the std ops upload used (latest before task creation)
+        std_upload = None
+        std_rec = db.query(UploadRecord).filter(
+            UploadRecord.file_type == "std_operation",
+            UploadRecord.uploaded_at <= t.created_at if t.created_at else True,
+        ).order_by(UploadRecord.uploaded_at.desc()).first()
+        if std_rec:
+            std_upload = {"filename": std_rec.filename, "row_count": std_rec.row_count, "uploaded_at": std_rec.uploaded_at.isoformat() if std_rec.uploaded_at else None}
+
+        result.append({
             "id": t.id,
             "name": t.name,
             "status": t.status,
@@ -65,9 +82,10 @@ def list_tasks(db: Session = Depends(get_db)):
             "output_bom_path": t.output_bom_path,
             "output_routing_path": t.output_routing_path,
             "output_sequence_path": t.output_sequence_path,
-        }
-        for t in tasks
-    ]
+            "bom_upload": bom_upload,
+            "std_upload": std_upload,
+        })
+    return result
 
 
 @router.get("/{task_id}")
