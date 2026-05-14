@@ -1,0 +1,133 @@
+{
+  "app": {
+    "title": "Auto-BOM 系统",
+    "subtitle": "BOM 自动化生成工具"
+  },
+  "nav": {
+    "newTask": "新建任务",
+    "history": "历史记录",
+    "settings": "设置"
+  },
+  "lang": {
+    "zh-CN": "简体中文",
+    "zh-TW": "繁體中文",
+    "en": "English"
+  },
+  "phase": {
+    "one": "阶段一：生成导入清单",
+    "two": "阶段二：生成 ERP 上传文件"
+  },
+  "steps": {
+    "upload": "上传底稿",
+    "filter": "筛选料号",
+    "config": "配置罐头",
+    "exportList": "生成清单",
+    "generateFiles": "生成文件"
+  },
+  "upload": {
+    "title": "上传 BOM 底稿",
+    "bomBase": "MBU2 BOM 底稿",
+    "bomBaseDesc": "上传 BOM 底稿 (WXBMR005) Excel 文件",
+    "canTemplate": "罐头对照表",
+    "canTemplateDesc": "上传含罐头对照表的 Excel 文件（可选，用于自动匹配）",
+    "dragDrop": "拖放文件到这里，或点击选择",
+    "uploaded": "已上传",
+    "rows": "行",
+    "next": "下一步"
+  },
+  "filter": {
+    "title": "筛选料号",
+    "desc": "从底稿中选择要建立 BOM 的料号",
+    "search": "搜索料号 / 摘要 / TYPE...",
+    "selectAll": "全选",
+    "deselectAll": "取消全选",
+    "selected": "已选择 {{count}} 个料号",
+    "itemNo": "料号",
+    "summary": "摘要",
+    "type": "TYPE",
+    "family": "FAMILY",
+    "package": "PACKAGE",
+    "component": "原件",
+    "prev": "上一步",
+    "next": "下一步"
+  },
+  "config": {
+    "title": "配置罐头",
+    "desc": "为选中的料号配置焊接、成型、包装罐头",
+    "autoMatch": "自动匹配罐头",
+    "matched": "已匹配 {{count}} 个",
+    "unmatched": "未匹配 {{count}} 个",
+    "itemNo": "料号",
+    "component": "原件 (WAF)",
+    "altStructure": "替代结构",
+    "weldCan": "焊接罐头",
+    "moldCan": "成型罐头",
+    "packCan": "包装罐头",
+    "prev": "上一步",
+    "next": "生成清单"
+  },
+  "exportList": {
+    "title": "生成 C-CMAX 导入清单",
+    "desc": "确认配置并生成 C-CMAX 导入清单",
+    "taskName": "任务名称",
+    "taskNamePlaceholder": "输入任务名称...",
+    "summary": "清单摘要",
+    "itemCount": "料号数量",
+    "preview": "清单预览",
+    "generating": "生成中...",
+    "generateBtn": "生成导入清单",
+    "completed": "导入清单已生成！",
+    "download": "下载清单",
+    "nextPhase": "进入阶段二：生成 ERP 文件",
+    "prev": "上一步"
+  },
+  "generate": {
+    "title": "生成 ERP 上传文件",
+    "desc": "上传标准作业文件，搭配导入清单自动生成 3 个 ERP 上传文件",
+    "hint": "请上传正确的文件！",
+    "hintDesc": "右侧请上传「WXBMR004_标准作业.xlsx」文件，请勿上传其他文件。",
+    "stdOps": "WXBMR004 标准作业",
+    "stdOpsDesc": "上传 WXBMR004 标准作业 Excel 文件",
+    "listReady": "C-CMAX 导入清单",
+    "listReadyDesc": "已从阶段一生成，共 {{count}} 个料号",
+    "outputFiles": "输出文件",
+    "bomLoader": "pj_bom_loader（BOM 汇入）",
+    "routings": "routings（工艺路线）",
+    "sequences": "sequences-raw（作业序列）",
+    "generating": "生成中...",
+    "generateBtn": "开始生成 3 个文件",
+    "completed": "生成完成！",
+    "download": "下载",
+    "downloadAll": "下载全部",
+    "backToHome": "返回首页",
+    "prev": "上一步"
+  },
+  "toast": {
+    "invalidFormat": "文件格式错误，请上传 .xlsx 或 .xls 格式的 Excel 文件。",
+    "uploadFailed": "上传失败，请确认文件格式是否正确，或是否上传了错误的文件。"
+  },
+  "history": {
+    "title": "历史记录",
+    "desc": "查看所有生成任务和上传记录",
+    "tasks": "生成任务",
+    "uploads": "上传记录",
+    "noTasks": "暂无任务记录",
+    "noUploads": "暂无上传记录",
+    "taskName": "任务名称",
+    "status": "状态",
+    "items": "料号数",
+    "createdAt": "创建时间",
+    "completedAt": "完成时间",
+    "actions": "操作",
+    "filename": "文件名",
+    "fileType": "文件类型",
+    "rowCount": "数据行数",
+    "uploadedAt": "上传时间",
+    "draft": "草稿",
+    "processing": "处理中",
+    "completed": "已完成",
+    "failed": "失败",
+    "view": "查看",
+    "download": "下载"
+  }
+}

@@ -1,22 +1,25 @@
 """File upload and parsing routes."""
 import shutil
+import time
+import logging
 from datetime import datetime
 from pathlib import Path
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.config import UPLOAD_DIR
-from app.models.tables import UploadRecord, CanTemplate, StdOperation
-from app.services.excel_parser import (
-    parse_bom_base, parse_can_template, parse_std_operations,
-)
+from app.models.tables import UploadRecord, CanTemplate
+from app.services.excel_parser import parse_bom_base, parse_can_template
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/upload", tags=["upload"])
 
 
 @router.post("/bom-base")
-async def upload_bom_base(file: UploadFile = File(...), db: Session = Depends(get_db)):
+def upload_bom_base(file: UploadFile = File(...), db: Session = Depends(get_db)):
     """Upload BOM base file (WXBMR005)."""
+    t0 = time.time()
     if not file.filename.endswith((".xlsx", ".xls")):
         raise HTTPException(400, "Only Excel files are supported")
 
@@ -24,9 +27,13 @@ async def upload_bom_base(file: UploadFile = File(...), db: Session = Depends(ge
     save_path = UPLOAD_DIR / f"bom_base_{ts}_{file.filename}"
     with open(save_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
+    log.info(f"[bom-base] save file: {time.time()-t0:.2f}s")
 
+    t1 = time.time()
     items = parse_bom_base(str(save_path))
+    log.info(f"[bom-base] parse ({len(items)} rows): {time.time()-t1:.2f}s")
 
+    t2 = time.time()
     record = UploadRecord(
         filename=file.filename,
         file_path=str(save_path),
@@ -36,6 +43,7 @@ async def upload_bom_base(file: UploadFile = File(...), db: Session = Depends(ge
     db.add(record)
     db.commit()
     db.refresh(record)
+    log.info(f"[bom-base] db write: {time.time()-t2:.2f}s | total: {time.time()-t0:.2f}s")
 
     return {
         "id": record.id,
@@ -46,7 +54,7 @@ async def upload_bom_base(file: UploadFile = File(...), db: Session = Depends(ge
 
 
 @router.post("/can-template")
-async def upload_can_template(file: UploadFile = File(...), db: Session = Depends(get_db)):
+def upload_can_template(file: UploadFile = File(...), db: Session = Depends(get_db)):
     """Upload file containing 罐头 templates (C-CMAX导入清单 with 罐头 sheet)."""
     if not file.filename.endswith((".xlsx", ".xls")):
         raise HTTPException(400, "Only Excel files are supported")
@@ -72,8 +80,13 @@ async def upload_can_template(file: UploadFile = File(...), db: Session = Depend
 
 
 @router.post("/std-operations")
-async def upload_std_operations(file: UploadFile = File(...), db: Session = Depends(get_db)):
-    """Upload WXBMR004 standard operations file."""
+def upload_std_operations(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """Upload WXBMR004 standard operations file.
+
+    Saves file and does lightweight validation only.
+    Full parsing happens on-demand during file generation.
+    """
+    t0 = time.time()
     if not file.filename.endswith((".xlsx", ".xls")):
         raise HTTPException(400, "Only Excel files are supported")
 
@@ -81,29 +94,37 @@ async def upload_std_operations(file: UploadFile = File(...), db: Session = Depe
     save_path = UPLOAD_DIR / f"std_ops_{ts}_{file.filename}"
     with open(save_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
+    log.info(f"[std-ops] save file: {time.time()-t0:.2f}s")
 
-    ops = parse_std_operations(str(save_path))
+    # Lightweight validation: just open the file to confirm it's a valid Excel
+    t1 = time.time()
+    try:
+        from openpyxl import load_workbook as _lw
+        _wb = _lw(str(save_path), read_only=True)
+        total_rows = max((_wb.active.max_row or 1) - 1, 0)
+        _wb.close()
+    except Exception:
+        save_path.unlink(missing_ok=True)
+        raise HTTPException(400, "Invalid file. Please upload the correct WXBMR004 Excel file.")
+    log.info(f"[std-ops] validate ({total_rows} rows): {time.time()-t1:.2f}s")
 
+    t2 = time.time()
     record = UploadRecord(
         filename=file.filename,
         file_path=str(save_path),
         file_type="std_operation",
-        row_count=len(ops),
+        row_count=total_rows,
     )
     db.add(record)
-
-    # Clear and reload std operations
-    db.query(StdOperation).delete()
-    for op in ops:
-        db.add(StdOperation(**op))
     db.commit()
     db.refresh(record)
+    log.info(f"[std-ops] db write: {time.time()-t2:.2f}s | total: {time.time()-t0:.2f}s")
 
-    return {"id": record.id, "filename": record.filename, "row_count": len(ops)}
+    return {"id": record.id, "filename": record.filename, "row_count": total_rows}
 
 
 @router.get("/records")
-async def list_upload_records(db: Session = Depends(get_db)):
+def list_upload_records(db: Session = Depends(get_db)):
     """List all upload records."""
     records = db.query(UploadRecord).order_by(UploadRecord.uploaded_at.desc()).all()
     return [
@@ -119,7 +140,7 @@ async def list_upload_records(db: Session = Depends(get_db)):
 
 
 @router.get("/can-templates")
-async def list_can_templates(db: Session = Depends(get_db)):
+def list_can_templates(db: Session = Depends(get_db)):
     """List all can templates in database."""
     templates = db.query(CanTemplate).all()
     return [

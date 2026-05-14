@@ -1,0 +1,133 @@
+{
+  "app": {
+    "title": "Auto-BOM 系統",
+    "subtitle": "BOM 自動化生成工具"
+  },
+  "nav": {
+    "newTask": "新建任務",
+    "history": "歷史記錄",
+    "settings": "設定"
+  },
+  "lang": {
+    "zh-CN": "简体中文",
+    "zh-TW": "繁體中文",
+    "en": "English"
+  },
+  "phase": {
+    "one": "階段一：產生導入清單",
+    "two": "階段二：生成 ERP 上傳文件"
+  },
+  "steps": {
+    "upload": "上傳底稿",
+    "filter": "篩選料號",
+    "config": "配置罐頭",
+    "exportList": "產生清單",
+    "generateFiles": "生成文件"
+  },
+  "upload": {
+    "title": "上傳 BOM 底稿",
+    "bomBase": "MBU2 BOM 底稿",
+    "bomBaseDesc": "上傳 BOM 底稿 (WXBMR005) Excel 文件",
+    "canTemplate": "罐頭對照表",
+    "canTemplateDesc": "上傳含罐頭對照表的 Excel 文件（可選，用於自動匹配）",
+    "dragDrop": "拖放文件到這裡，或點擊選擇",
+    "uploaded": "已上傳",
+    "rows": "行",
+    "next": "下一步"
+  },
+  "filter": {
+    "title": "篩選料號",
+    "desc": "從底稿中選擇要建立 BOM 的料號",
+    "search": "搜尋料號 / 摘要 / TYPE...",
+    "selectAll": "全選",
+    "deselectAll": "取消全選",
+    "selected": "已選擇 {{count}} 個料號",
+    "itemNo": "料號",
+    "summary": "摘要",
+    "type": "TYPE",
+    "family": "FAMILY",
+    "package": "PACKAGE",
+    "component": "原件",
+    "prev": "上一步",
+    "next": "下一步"
+  },
+  "config": {
+    "title": "配置罐頭",
+    "desc": "為選中的料號配置焊接、成型、包裝罐頭",
+    "autoMatch": "自動匹配罐頭",
+    "matched": "已匹配 {{count}} 個",
+    "unmatched": "未匹配 {{count}} 個",
+    "itemNo": "料號",
+    "component": "原件 (WAF)",
+    "altStructure": "替代結構",
+    "weldCan": "焊接罐頭",
+    "moldCan": "成型罐頭",
+    "packCan": "包裝罐頭",
+    "prev": "上一步",
+    "next": "產生清單"
+  },
+  "exportList": {
+    "title": "產生 C-CMAX 導入清單",
+    "desc": "確認配置並產生 C-CMAX 導入清單",
+    "taskName": "任務名稱",
+    "taskNamePlaceholder": "輸入任務名稱...",
+    "summary": "清單摘要",
+    "itemCount": "料號數量",
+    "preview": "清單預覽",
+    "generating": "產生中...",
+    "generateBtn": "產生導入清單",
+    "completed": "導入清單已產生！",
+    "download": "下載清單",
+    "nextPhase": "進入階段二：生成 ERP 文件",
+    "prev": "上一步"
+  },
+  "generate": {
+    "title": "生成 ERP 上傳文件",
+    "desc": "上傳標準作業文件，搭配導入清單自動生成 3 個 ERP 上傳文件",
+    "hint": "請上傳正確的文件！",
+    "hintDesc": "右側請上傳「WXBMR004_標準作業.xlsx」文件，請勿上傳其他文件。",
+    "stdOps": "WXBMR004 標準作業",
+    "stdOpsDesc": "上傳 WXBMR004 標準作業 Excel 文件",
+    "listReady": "C-CMAX 導入清單",
+    "listReadyDesc": "已從階段一產生，共 {{count}} 個料號",
+    "outputFiles": "輸出文件",
+    "bomLoader": "pj_bom_loader（BOM 匯入）",
+    "routings": "routings（工藝路線）",
+    "sequences": "sequences-raw（作業序列）",
+    "generating": "生成中...",
+    "generateBtn": "開始生成 3 個文件",
+    "completed": "生成完成！",
+    "download": "下載",
+    "downloadAll": "下載全部",
+    "backToHome": "返回首頁",
+    "prev": "上一步"
+  },
+  "toast": {
+    "invalidFormat": "文件格式錯誤，請上傳 .xlsx 或 .xls 格式的 Excel 文件。",
+    "uploadFailed": "上傳失敗，請確認文件格式是否正確，或是否上傳了錯誤的文件。"
+  },
+  "history": {
+    "title": "歷史記錄",
+    "desc": "查看所有生成任務和上傳記錄",
+    "tasks": "生成任務",
+    "uploads": "上傳記錄",
+    "noTasks": "暫無任務記錄",
+    "noUploads": "暫無上傳記錄",
+    "taskName": "任務名稱",
+    "status": "狀態",
+    "items": "料號數",
+    "createdAt": "建立時間",
+    "completedAt": "完成時間",
+    "actions": "操作",
+    "filename": "文件名",
+    "fileType": "文件類型",
+    "rowCount": "資料行數",
+    "uploadedAt": "上傳時間",
+    "draft": "草稿",
+    "processing": "處理中",
+    "completed": "已完成",
+    "failed": "失敗",
+    "view": "查看",
+    "download": "下載"
+  }
+}

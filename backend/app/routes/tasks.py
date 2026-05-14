@@ -6,10 +6,11 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.config import OUTPUT_DIR
-from app.models.tables import BomTask, BomTaskItem, CanTemplate, StdOperation
+from app.models.tables import BomTask, BomTaskItem, CanTemplate, UploadRecord
 from app.services.bom_generator import (
     generate_bom_loader, generate_routings, generate_sequences,
 )
+from app.services.excel_parser import parse_std_operations
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
@@ -42,7 +43,7 @@ class CanMatchRequest(BaseModel):
 
 
 @router.post("")
-async def create_task(data: TaskCreate, db: Session = Depends(get_db)):
+def create_task(data: TaskCreate, db: Session = Depends(get_db)):
     task = BomTask(name=data.name, upload_id=data.upload_id)
     db.add(task)
     db.commit()
@@ -51,7 +52,7 @@ async def create_task(data: TaskCreate, db: Session = Depends(get_db)):
 
 
 @router.get("")
-async def list_tasks(db: Session = Depends(get_db)):
+def list_tasks(db: Session = Depends(get_db)):
     tasks = db.query(BomTask).order_by(BomTask.created_at.desc()).all()
     return [
         {
@@ -70,7 +71,7 @@ async def list_tasks(db: Session = Depends(get_db)):
 
 
 @router.get("/{task_id}")
-async def get_task(task_id: int, db: Session = Depends(get_db)):
+def get_task(task_id: int, db: Session = Depends(get_db)):
     task = db.query(BomTask).filter_by(id=task_id).first()
     if not task:
         raise HTTPException(404, "Task not found")
@@ -109,7 +110,7 @@ async def get_task(task_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{task_id}/items")
-async def add_items(task_id: int, items: list[TaskItemCreate], db: Session = Depends(get_db)):
+def add_items(task_id: int, items: list[TaskItemCreate], db: Session = Depends(get_db)):
     task = db.query(BomTask).filter_by(id=task_id).first()
     if not task:
         raise HTTPException(404, "Task not found")
@@ -123,7 +124,7 @@ async def add_items(task_id: int, items: list[TaskItemCreate], db: Session = Dep
 
 
 @router.post("/{task_id}/auto-match-cans")
-async def auto_match_cans(task_id: int, db: Session = Depends(get_db)):
+def auto_match_cans(task_id: int, db: Session = Depends(get_db)):
     """Auto-match 罐头 for all items in a task based on WAF code."""
     task = db.query(BomTask).filter_by(id=task_id).first()
     if not task:
@@ -152,7 +153,7 @@ async def auto_match_cans(task_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{task_id}/items/{item_id}")
-async def update_item(task_id: int, item_id: int, data: TaskItemCreate, db: Session = Depends(get_db)):
+def update_item(task_id: int, item_id: int, data: TaskItemCreate, db: Session = Depends(get_db)):
     item = db.query(BomTaskItem).filter_by(id=item_id, task_id=task_id).first()
     if not item:
         raise HTTPException(404, "Item not found")
@@ -163,7 +164,7 @@ async def update_item(task_id: int, item_id: int, data: TaskItemCreate, db: Sess
 
 
 @router.post("/{task_id}/generate")
-async def generate_files(task_id: int, db: Session = Depends(get_db)):
+def generate_files(task_id: int, db: Session = Depends(get_db)):
     """Generate the 3 output files for a task."""
     task = db.query(BomTask).filter_by(id=task_id).first()
     if not task:
@@ -190,12 +191,14 @@ async def generate_files(task_id: int, db: Session = Depends(get_db)):
         for i in items
     ]
 
-    # Build std_ops lookup
-    std_ops_rows = db.query(StdOperation).all()
+    # Build std_ops lookup from the latest uploaded std operations file
+    std_record = db.query(UploadRecord).filter_by(file_type="std_operation").order_by(UploadRecord.uploaded_at.desc()).first()
     std_ops = {}
-    for op in std_ops_rows:
-        key = f"{op.seq}_{op.summary}"
-        std_ops[key] = op.op_id
+    if std_record and std_record.file_path:
+        std_ops_rows = parse_std_operations(std_record.file_path)
+        for op in std_ops_rows:
+            key = f"{op['seq']}_{op['summary']}"
+            std_ops[key] = op["op_id"]
 
     try:
         task_output_dir = OUTPUT_DIR / f"task_{task_id}"
@@ -227,7 +230,7 @@ async def generate_files(task_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{task_id}/download/{file_type}")
-async def download_file(task_id: int, file_type: str, db: Session = Depends(get_db)):
+def download_file(task_id: int, file_type: str, db: Session = Depends(get_db)):
     """Download a generated file. file_type: bom | routing | sequence"""
     task = db.query(BomTask).filter_by(id=task_id).first()
     if not task:

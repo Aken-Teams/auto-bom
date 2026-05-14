@@ -1,0 +1,133 @@
+{
+  "app": {
+    "title": "Auto-BOM System",
+    "subtitle": "BOM Automation Tool"
+  },
+  "nav": {
+    "newTask": "New Task",
+    "history": "History",
+    "settings": "Settings"
+  },
+  "lang": {
+    "zh-CN": "简体中文",
+    "zh-TW": "繁體中文",
+    "en": "English"
+  },
+  "phase": {
+    "one": "Phase 1: Generate Import List",
+    "two": "Phase 2: Generate ERP Upload Files"
+  },
+  "steps": {
+    "upload": "Upload",
+    "filter": "Filter",
+    "config": "Configure",
+    "exportList": "Export List",
+    "generateFiles": "Generate Files"
+  },
+  "upload": {
+    "title": "Upload BOM Base",
+    "bomBase": "MBU2 BOM Base",
+    "bomBaseDesc": "Upload BOM base (WXBMR005) Excel file",
+    "canTemplate": "Can Template",
+    "canTemplateDesc": "Upload Excel file with can template mapping (optional, for auto-matching)",
+    "dragDrop": "Drag & drop file here, or click to select",
+    "uploaded": "Uploaded",
+    "rows": "rows",
+    "next": "Next"
+  },
+  "filter": {
+    "title": "Filter Items",
+    "desc": "Select items from the base file to build BOM",
+    "search": "Search item no / summary / TYPE...",
+    "selectAll": "Select All",
+    "deselectAll": "Deselect All",
+    "selected": "{{count}} items selected",
+    "itemNo": "Item No.",
+    "summary": "Summary",
+    "type": "TYPE",
+    "family": "FAMILY",
+    "package": "PACKAGE",
+    "component": "Component",
+    "prev": "Previous",
+    "next": "Next"
+  },
+  "config": {
+    "title": "Configure Cans",
+    "desc": "Assign welding, molding, and packaging cans for selected items",
+    "autoMatch": "Auto Match Cans",
+    "matched": "{{count}} matched",
+    "unmatched": "{{count}} unmatched",
+    "itemNo": "Item No.",
+    "component": "Component (WAF)",
+    "altStructure": "Alt. Structure",
+    "weldCan": "Welding Can",
+    "moldCan": "Molding Can",
+    "packCan": "Packaging Can",
+    "prev": "Previous",
+    "next": "Export List"
+  },
+  "exportList": {
+    "title": "Generate C-CMAX Import List",
+    "desc": "Confirm configuration and generate C-CMAX import list",
+    "taskName": "Task Name",
+    "taskNamePlaceholder": "Enter task name...",
+    "summary": "List Summary",
+    "itemCount": "Item Count",
+    "preview": "List Preview",
+    "generating": "Generating...",
+    "generateBtn": "Generate Import List",
+    "completed": "Import list generated!",
+    "download": "Download List",
+    "nextPhase": "Phase 2: Generate ERP Files",
+    "prev": "Previous"
+  },
+  "generate": {
+    "title": "Generate ERP Upload Files",
+    "desc": "Upload standard operations file, combine with import list to auto-generate 3 ERP upload files",
+    "hint": "Please upload the correct file!",
+    "hintDesc": "Upload \"WXBMR004_Standard Operations.xlsx\" on the right. Do not upload other files.",
+    "stdOps": "WXBMR004 Standard Operations",
+    "stdOpsDesc": "Upload WXBMR004 standard operations Excel file",
+    "listReady": "C-CMAX Import List",
+    "listReadyDesc": "Generated from Phase 1, {{count}} items",
+    "outputFiles": "Output Files",
+    "bomLoader": "pj_bom_loader (BOM Import)",
+    "routings": "routings (Routing)",
+    "sequences": "sequences-raw (Operation Sequence)",
+    "generating": "Generating...",
+    "generateBtn": "Generate 3 Files",
+    "completed": "Generation Complete!",
+    "download": "Download",
+    "downloadAll": "Download All",
+    "backToHome": "Back to Home",
+    "prev": "Previous"
+  },
+  "toast": {
+    "invalidFormat": "Invalid file format. Please upload an .xlsx or .xls Excel file.",
+    "uploadFailed": "Upload failed. Please check the file format or make sure you uploaded the correct file."
+  },
+  "history": {
+    "title": "History",
+    "desc": "View all generation tasks and upload records",
+    "tasks": "Generation Tasks",
+    "uploads": "Upload Records",
+    "noTasks": "No task records",
+    "noUploads": "No upload records",
+    "taskName": "Task Name",
+    "status": "Status",
+    "items": "Items",
+    "createdAt": "Created At",
+    "completedAt": "Completed At",
+    "actions": "Actions",
+    "filename": "Filename",
+    "fileType": "File Type",
+    "rowCount": "Row Count",
+    "uploadedAt": "Uploaded At",
+    "draft": "Draft",
+    "processing": "Processing",
+    "completed": "Completed",
+    "failed": "Failed",
+    "view": "View",
+    "download": "Download"
+  }
+}

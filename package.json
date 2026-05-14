@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "concurrently -n backend,frontend -c blue,green \"pnpm run dev:backend\" \"pnpm run dev:frontend\"",
-    "dev:backend": "cd backend && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
+    "dev:backend": "cd backend && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001",
     "dev:frontend": "cd frontend && pnpm dev",
     "install:all": "pnpm install && cd frontend && pnpm install && cd ../backend && pip install -r requirements.txt",
     "db:init": "cd backend && python -m app.db_init"

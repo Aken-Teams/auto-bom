@@ -96,28 +96,42 @@ def parse_item_list(file_path: str) -> list[dict]:
     return items
 
 
-def parse_std_operations(file_path: str) -> list[dict]:
-    """Parse WXBMR004 standard operations."""
+def parse_std_operations(file_path: str, limit: int = 0) -> list[dict]:
+    """Parse WXBMR004 standard operations.
+
+    Args:
+        file_path: Path to the Excel file.
+        limit: If > 0, only parse the first `limit` valid rows (for quick validation).
+    """
     wb = load_workbook(file_path, read_only=True, data_only=True)
     ws = wb.active
-    rows = list(ws.iter_rows(min_row=2, values_only=True))
-    wb.close()
 
     ops = []
-    for row in rows:
+    for row in ws.iter_rows(min_row=2, values_only=True):
         vals = list(row)
         if not vals[0]:
             continue
+        try:
+            op_id = int(vals[0])
+        except (ValueError, TypeError):
+            continue  # skip non-numeric rows (wrong file or header)
+        try:
+            seq = int(vals[5]) if vals[5] else 0
+        except (ValueError, TypeError):
+            seq = 0
         ops.append({
-            "op_id": int(vals[0]) if vals[0] else 0,
+            "op_id": op_id,
             "code": str(vals[1] or ""),
             "summary": str(vals[2] or ""),
             "department": str(vals[3] or ""),
             "dept_summary": str(vals[4] or ""),
-            "seq": int(vals[5]) if vals[5] else 0,
-            "resource": str(vals[6] or ""),
-            "resource_summary": str(vals[7] or ""),
-            "unit": str(vals[8] or ""),
-            "pph": str(vals[9] or ""),
+            "seq": seq,
+            "resource": str(vals[6] or "") if len(vals) > 6 else "",
+            "resource_summary": str(vals[7] or "") if len(vals) > 7 else "",
+            "unit": str(vals[8] or "") if len(vals) > 8 else "",
+            "pph": str(vals[9] or "") if len(vals) > 9 else "",
         })
+        if limit and len(ops) >= limit:
+            break
+    wb.close()
     return ops
