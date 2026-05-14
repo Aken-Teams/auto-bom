@@ -17,6 +17,19 @@ from app.services.excel_parser import parse_std_operations
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
 
+def _item_to_dict(i: BomTaskItem) -> dict:
+    """Convert a BomTaskItem to a dict with all fields for generators."""
+    return {
+        "item_no": i.item_no, "summary": i.summary, "doc_no": i.doc_no,
+        "category_l": "半成品", "category_m": "自製",
+        "alt_structure": i.alt_structure, "type_name": i.type_name,
+        "family": i.family, "package": i.package, "line": i.line,
+        "function": i.function, "component": i.component,
+        "component_summary": i.component_summary,
+        "weld_can": i.weld_can, "mold_can": i.mold_can, "pack_can": i.pack_can,
+    }
+
+
 class TaskCreate(BaseModel):
     name: str
     upload_id: int | None = None
@@ -220,18 +233,7 @@ def generate_cmax(task_id: int, db: Session = Depends(get_db)):
     if not items:
         raise HTTPException(400, "No items in task")
 
-    item_dicts = [
-        {
-            "item_no": i.item_no, "summary": i.summary, "doc_no": i.doc_no,
-            "category_l": "半成品", "category_m": "自製",
-            "alt_structure": i.alt_structure, "type_name": i.type_name,
-            "family": i.family, "package": i.package, "line": i.line,
-            "function": i.function, "component": i.component,
-            "component_summary": i.component_summary,
-            "weld_can": i.weld_can, "mold_can": i.mold_can, "pack_can": i.pack_can,
-        }
-        for i in items
-    ]
+    item_dicts = [_item_to_dict(i) for i in items]
 
     task_output_dir = OUTPUT_DIR / f"task_{task_id}"
     task_output_dir.mkdir(exist_ok=True)
@@ -257,28 +259,18 @@ def generate_files(task_id: int, db: Session = Depends(get_db)):
     task.status = "processing"
     db.commit()
 
-    item_dicts = [
-        {
-            "item_no": i.item_no,
-            "summary": i.summary,
-            "alt_structure": i.alt_structure,
-            "component": i.component,
-            "family": i.family,
-            "weld_can": i.weld_can,
-            "mold_can": i.mold_can,
-            "pack_can": i.pack_can,
-        }
-        for i in items
-    ]
+    item_dicts = [_item_to_dict(i) for i in items]
 
-    # Build std_ops lookup from the latest uploaded std operations file
+    # Build std_ops lookup: seq_num -> first matching op_id
+    # Note: proper matching requires domain logic (chip size for 切割, family for others)
     std_record = db.query(UploadRecord).filter_by(file_type="std_operation").order_by(UploadRecord.uploaded_at.desc()).first()
     std_ops = {}
     if std_record and std_record.file_path:
         std_ops_rows = parse_std_operations(std_record.file_path)
         for op in std_ops_rows:
-            key = f"{op['seq']}_{op['summary']}"
-            std_ops[key] = op["op_id"]
+            seq = op["seq"]
+            if seq not in std_ops:
+                std_ops[seq] = op["op_id"]
 
     try:
         task_output_dir = OUTPUT_DIR / f"task_{task_id}"
