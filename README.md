@@ -60,7 +60,7 @@ auto-bom/
 ```bash
 cd backend
 pip install fastapi uvicorn sqlalchemy pymysql openpyxl
-uvicorn app.main:app --host 0.0.0.0 --port 8001
+uvicorn app.main:app --host 0.0.0.0 --port 12063
 ```
 
 ### 前端
@@ -71,7 +71,7 @@ pnpm install
 pnpm dev
 ```
 
-前端默认运行在 `http://localhost:5173`，通过 Vite proxy 代理到后端 `http://localhost:8001`。
+前端默认运行在 `http://localhost:12062`，通过 Vite proxy 代理到后端 `http://localhost:12063`。
 
 ## 数据库配置
 
