@@ -59,7 +59,30 @@
     "desc": "Assign welding, molding, and packaging cans for selected items",
     "autoMatch": "Auto Match Cans",
     "matched": "{{count}} matched",
+    "matchedDetail": "Weld {{weld}} ｜ Mold {{mold}} ｜ Pack {{pack}}",
     "unmatched": "{{count}} unmatched",
+    "rules": {
+      "title": "Can Matching Rules",
+      "weldInfo": "Welding can: auto-matched one-to-one by WAF code, no setup needed",
+      "mold": "Molding can (general)",
+      "pack": "Packaging can (general; pick by rule when multiple)",
+      "add": "Add rule",
+      "remove": "Remove",
+      "valuePlaceholder": "value, e.g. _R1_",
+      "field": {
+        "item_no": "Item No.",
+        "type_name": "TYPE",
+        "family": "FAMILY",
+        "package": "PACKAGE",
+        "component": "Component"
+      },
+      "op": {
+        "all": "All",
+        "contains": "Contains",
+        "equals": "Equals",
+        "regex": "Regex"
+      }
+    },
     "itemNo": "Item No.",
     "component": "Component (WAF)",
     "altStructure": "Alt. Structure",

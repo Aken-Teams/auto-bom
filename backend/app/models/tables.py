@@ -75,6 +75,37 @@ class CanTemplate(Base):
     pack_desc: Mapped[str] = mapped_column(String(500), nullable=True)
 
 
+class CanOption(Base):
+    """General (通用) can options that are NOT matched by WAF code.
+
+    Mold/pack cans in the 罐头 file have no WAF and apply across items
+    according to user-defined rules (see CanRule). Replaced on each upload.
+    """
+    __tablename__ = "can_options"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    can_type: Mapped[str] = mapped_column(String(20), index=True, comment="mold | pack")
+    can_code: Mapped[str] = mapped_column(String(100), comment="罐头代码 e.g. SMC_PA0009")
+    can_desc: Mapped[str] = mapped_column(String(500), nullable=True, comment="原始描述")
+    label: Mapped[str] = mapped_column(String(200), nullable=True, comment="精简显示标签")
+
+
+class CanRule(Base):
+    """User-defined rule for assigning a general can to items.
+
+    Persisted globally so the rule panel remembers the last configuration.
+    """
+    __tablename__ = "can_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    can_type: Mapped[str] = mapped_column(String(20), index=True, comment="mold | pack")
+    match_field: Mapped[str] = mapped_column(String(30), default="item_no", comment="item_no|type_name|family|package|component")
+    match_op: Mapped[str] = mapped_column(String(20), default="contains", comment="all|contains|equals|regex")
+    match_value: Mapped[str] = mapped_column(String(200), nullable=True)
+    can_code: Mapped[str] = mapped_column(String(100), comment="套用的罐头代码")
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class StdOperation(Base):
     """Standard operation lookup from WXBMR004."""
     __tablename__ = "std_operations"

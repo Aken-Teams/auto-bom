@@ -8,7 +8,7 @@ from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.config import UPLOAD_DIR
-from app.models.tables import UploadRecord, CanTemplate
+from app.models.tables import UploadRecord, CanTemplate, CanOption
 from app.services.excel_parser import parse_bom_base, parse_can_template
 
 log = logging.getLogger(__name__)
@@ -64,9 +64,11 @@ def upload_can_template(file: UploadFile = File(...), db: Session = Depends(get_
     with open(save_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
-    templates = parse_can_template(str(save_path))
+    parsed = parse_can_template(str(save_path))
+    templates = parsed["weld"]
+    options = parsed["options"]
 
-    # Upsert into database
+    # Upsert weld templates (matched by WAF code)
     for t in templates:
         existing = db.query(CanTemplate).filter_by(waf_code=t["waf_code"]).first()
         if existing:
@@ -75,18 +77,31 @@ def upload_can_template(file: UploadFile = File(...), db: Session = Depends(get_
         else:
             db.add(CanTemplate(**t))
 
+    # Replace general can options (mold/pack) with the current file's catalog
+    db.query(CanOption).delete()
+    for o in options:
+        db.add(CanOption(**o))
+
+    total = len(templates) + len(options)
+
     # Save upload record
     record = UploadRecord(
         filename=file.filename,
         file_path=str(save_path),
         file_type="can_template",
-        row_count=len(templates),
+        row_count=total,
     )
     db.add(record)
     db.commit()
     db.refresh(record)
 
-    return {"id": record.id, "count": len(templates), "templates": templates}
+    return {
+        "id": record.id,
+        "count": total,
+        "weld_count": len(templates),
+        "templates": templates,
+        "options": options,
+    }
 
 
 @router.post("/std-operations")
@@ -146,6 +161,22 @@ def list_upload_records(db: Session = Depends(get_db)):
             "uploaded_at": r.uploaded_at.isoformat() if r.uploaded_at else None,
         }
         for r in records
+    ]
+
+
+@router.get("/can-options")
+def list_can_options(db: Session = Depends(get_db)):
+    """List general (通用) can options — mold/pack cans not matched by WAF."""
+    options = db.query(CanOption).order_by(CanOption.can_type, CanOption.id).all()
+    return [
+        {
+            "id": o.id,
+            "can_type": o.can_type,
+            "can_code": o.can_code,
+            "can_desc": o.can_desc,
+            "label": o.label,
+        }
+        for o in options
     ]
 
 

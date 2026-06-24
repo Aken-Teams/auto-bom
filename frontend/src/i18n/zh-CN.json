@@ -59,7 +59,30 @@
     "desc": "为选中的料号配置焊接、成型、包装罐头",
     "autoMatch": "自动匹配罐头",
     "matched": "已匹配 {{count}} 个",
+    "matchedDetail": "焊接 {{weld}} ｜ 成型 {{mold}} ｜ 包装 {{pack}}",
     "unmatched": "未匹配 {{count}} 个",
+    "rules": {
+      "title": "罐头匹配规则",
+      "weldInfo": "焊接罐：自动按 WAF code 一对一匹配，无需设定",
+      "mold": "成型罐（通用）",
+      "pack": "包装罐（通用；多个候选时按规则判定）",
+      "add": "新增规则",
+      "remove": "删除",
+      "valuePlaceholder": "值，如 _R1_",
+      "field": {
+        "item_no": "料号",
+        "type_name": "TYPE",
+        "family": "FAMILY",
+        "package": "PACKAGE",
+        "component": "原件"
+      },
+      "op": {
+        "all": "全部",
+        "contains": "包含",
+        "equals": "等于",
+        "regex": "正则"
+      }
+    },
     "itemNo": "料号",
     "component": "原件 (WAF)",
     "altStructure": "替代结构",

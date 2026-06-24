@@ -1,4 +1,5 @@
 """BOM task management routes."""
+import re
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -64,9 +65,42 @@ class TaskItemCreate(BaseModel):
     pack_can: str | None = None
 
 
+class CanRuleIn(BaseModel):
+    """A user-defined rule for assigning a general (mold/pack) can."""
+    can_type: str  # mold | pack
+    match_field: str = "item_no"  # item_no | type_name | family | package | component
+    match_op: str = "contains"  # all | contains | equals | regex
+    match_value: str | None = None
+    can_code: str
+
+
 class CanMatchRequest(BaseModel):
-    """Request to auto-match cans for task items."""
-    task_id: int
+    """Request to auto-match cans for task items, with optional general-can rules."""
+    rules: list[CanRuleIn] = []
+
+
+# Item fields a rule may match against
+_RULE_FIELDS = {"item_no", "type_name", "family", "package", "component"}
+
+
+def _rule_matches(rule: CanRuleIn, item: BomTaskItem) -> bool:
+    if rule.match_op == "all":
+        return True
+    field = rule.match_field if rule.match_field in _RULE_FIELDS else "item_no"
+    target = getattr(item, field, "") or ""
+    value = rule.match_value or ""
+    if rule.match_op == "contains":
+        return value != "" and value in target
+    if rule.match_op == "equals":
+        return target == value
+    if rule.match_op == "regex":
+        if not value:
+            return False
+        try:
+            return re.search(value, target) is not None
+        except re.error:
+            return False
+    return False
 
 
 @router.post("")
@@ -204,8 +238,13 @@ def add_items(task_id: int, items: list[TaskItemCreate], db: Session = Depends(g
 
 
 @router.post("/{task_id}/auto-match-cans")
-def auto_match_cans(task_id: int, db: Session = Depends(get_db)):
-    """Auto-match 罐头 for all items in a task based on WAF code."""
+def auto_match_cans(task_id: int, req: CanMatchRequest | None = None, db: Session = Depends(get_db)):
+    """Auto-match 罐头 for all items in a task.
+
+    - 焊接罐 (weld): matched one-to-one by WAF code (CanTemplate).
+    - 成型/包装罐 (mold/pack): assigned by user-defined rules (general cans).
+      The provided rules are also persisted globally for next time.
+    """
     task = db.query(BomTask).filter_by(id=task_id).first()
     if not task:
         raise HTTPException(404, "Task not found")
@@ -213,23 +252,44 @@ def auto_match_cans(task_id: int, db: Session = Depends(get_db)):
     items = db.query(BomTaskItem).filter_by(task_id=task_id).all()
     templates = {t.waf_code: t for t in db.query(CanTemplate).all()}
 
-    matched = 0
+    rules = req.rules if req else []
+    mold_rules = [r for r in rules if r.can_type == "mold"]
+    pack_rules = [r for r in rules if r.can_type == "pack"]
+
+    matched_weld = 0
+    matched_mold = 0
+    matched_pack = 0
     unmatched = []
     for item in items:
-        if item.component and item.component in templates:
-            t = templates[item.component]
-            if t.weld_can:
-                item.weld_can = t.weld_can
-            if t.mold_can:
-                item.mold_can = t.mold_can
-            if t.pack_can:
-                item.pack_can = t.pack_can
-            matched += 1
+        # Weld: exact WAF match
+        if item.component and item.component in templates and templates[item.component].weld_can:
+            item.weld_can = templates[item.component].weld_can
+            matched_weld += 1
         else:
             unmatched.append(item.item_no)
 
+        # Mold / pack: first matching rule wins
+        for r in mold_rules:
+            if _rule_matches(r, item):
+                item.mold_can = r.can_code
+                matched_mold += 1
+                break
+        for r in pack_rules:
+            if _rule_matches(r, item):
+                item.pack_can = r.can_code
+                matched_pack += 1
+                break
+
+    # NOTE: rules are applied per-request but intentionally NOT persisted —
+    # each run re-seeds rules from the uploaded can file (see StepConfig).
     db.commit()
-    return {"matched": matched, "unmatched": unmatched}
+    return {
+        "matched": matched_weld,
+        "matched_weld": matched_weld,
+        "matched_mold": matched_mold,
+        "matched_pack": matched_pack,
+        "unmatched": unmatched,
+    }
 
 
 @router.put("/{task_id}/items/{item_id}")

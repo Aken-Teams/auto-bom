@@ -35,33 +35,78 @@ def parse_bom_base(file_path: str) -> list[dict]:
     return items
 
 
-def parse_can_template(file_path: str) -> list[dict]:
-    """Parse 罐头 sheet from C-CMAX导入清单."""
+def _can_label(desc: str) -> str:
+    """Build a short display label from a can description.
+
+    e.g. "包裝/SMC/TR 7\"/////0.8K/" -> "SMC / TR 7\" / 0.8K"
+    Drops the leading type segment and any empty segments.
+    """
+    parts = [p.strip() for p in desc.split("/")]
+    meaningful = [p for p in parts[1:] if p]
+    return " / ".join(meaningful)
+
+
+def parse_can_template(file_path: str) -> dict:
+    """Parse 罐头 sheet from C-CMAX导入清单.
+
+    Each row is ONE can; its type is encoded in the description (col 11):
+      焊接 -> weld (matched by WAF code, one-to-one)
+      成型 -> mold (general can, no WAF)
+      包裝/包装 -> pack (general can, no WAF)
+
+    Returns {"weld": [<CanTemplate dicts>], "options": [<general can dicts>]}.
+    """
     wb = load_workbook(file_path, read_only=True, data_only=True)
     ws = wb["罐头"] if "罐头" in wb.sheetnames else wb.active
     rows = list(ws.iter_rows(min_row=2, values_only=True))
     wb.close()
 
-    templates = []
+    weld_templates = []
+    options = []
+    seen_options = set()
     for row in rows:
         vals = list(row)
         waf = str(vals[1] or "") if len(vals) > 1 else ""
-        if not waf:
+        can_code = str(vals[10] or "") if len(vals) > 10 else ""
+        can_desc = str(vals[11] or "") if len(vals) > 11 else ""
+        if not can_code and not waf:
             continue
-        templates.append({
-            "function": str(vals[0] or ""),
-            "waf_code": waf,
-            "supplier": str(vals[2] or "") if len(vals) > 2 else "",
-            "wafer_size": str(vals[3] or "") if len(vals) > 3 else "",
-            "mil": str(vals[5] or "") if len(vals) > 5 else "",
-            "weld_can": str(vals[10] or "") if len(vals) > 10 else "",
-            "weld_desc": str(vals[11] or "") if len(vals) > 11 else "",
-            "mold_can": str(vals[12] or "") if len(vals) > 12 else "",
-            "mold_desc": str(vals[13] or "") if len(vals) > 13 else "",
-            "pack_can": str(vals[14] or "") if len(vals) > 14 else "",
-            "pack_desc": str(vals[15] or "") if len(vals) > 15 else "",
-        })
-    return templates
+
+        if can_desc.startswith("成型"):
+            can_type = "mold"
+        elif can_desc.startswith("包裝") or can_desc.startswith("包装"):
+            can_type = "pack"
+        elif can_desc.startswith("焊接") or waf:
+            can_type = "weld"
+        else:
+            continue
+
+        if can_type == "weld":
+            weld_templates.append({
+                "function": str(vals[0] or ""),
+                "waf_code": waf,
+                "supplier": str(vals[2] or "") if len(vals) > 2 else "",
+                "wafer_size": str(vals[3] or "") if len(vals) > 3 else "",
+                "mil": str(vals[5] or "") if len(vals) > 5 else "",
+                "weld_can": can_code,
+                "weld_desc": can_desc,
+                "mold_can": "",
+                "mold_desc": "",
+                "pack_can": "",
+                "pack_desc": "",
+            })
+        else:
+            key = (can_type, can_code)
+            if can_code and key not in seen_options:
+                seen_options.add(key)
+                options.append({
+                    "can_type": can_type,
+                    "can_code": can_code,
+                    "can_desc": can_desc,
+                    "label": _can_label(can_desc),
+                })
+
+    return {"weld": weld_templates, "options": options}
 
 
 def parse_item_list(file_path: str) -> list[dict]:

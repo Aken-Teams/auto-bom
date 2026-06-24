@@ -75,6 +75,24 @@ export interface CanTemplate {
   pack_desc: string
 }
 
+// A general (通用) can option — mold/pack cans not matched by WAF.
+export interface CanOption {
+  id?: number
+  can_type: 'mold' | 'pack'
+  can_code: string
+  can_desc?: string
+  label?: string
+}
+
+// A user-defined rule for assigning a general can to items.
+export interface CanRule {
+  can_type: 'mold' | 'pack'
+  match_field: string // item_no | type_name | family | package | component
+  match_op: string // all | contains | equals | regex
+  match_value?: string
+  can_code: string
+}
+
 // Upload
 export const uploadBomBase = (file: File) => {
   const fd = new FormData()
@@ -97,13 +115,17 @@ export const uploadStdOps = (file: File) => {
 export const uploadCanTemplate = (file: File) => {
   const fd = new FormData()
   fd.append('file', file)
-  return api.post<{ id: number; count: number; templates: CanTemplate[] }>(
+  return api.post<{ id: number; count: number; weld_count: number; templates: CanTemplate[]; options: CanOption[] }>(
     '/upload/can-template',
     fd,
   )
 }
 
 export const getCanTemplates = () => api.get<CanTemplate[]>('/upload/can-templates')
+
+export const getCanOptions = () => api.get<CanOption[]>('/upload/can-options')
+
+export const getCanRules = () => api.get<CanRule[]>('/can-rules')
 
 export const getUploadRecords = () => api.get('/upload/records')
 
@@ -122,8 +144,14 @@ export const getTask = (id: number) => api.get<Task>(`/tasks/${id}`)
 export const addTaskItems = (taskId: number, items: TaskItem[]) =>
   api.post(`/tasks/${taskId}/items`, items)
 
-export const autoMatchCans = (taskId: number) =>
-  api.post<{ matched: number; unmatched: string[] }>(`/tasks/${taskId}/auto-match-cans`)
+export const autoMatchCans = (taskId: number, rules: CanRule[] = []) =>
+  api.post<{
+    matched: number
+    matched_weld: number
+    matched_mold: number
+    matched_pack: number
+    unmatched: string[]
+  }>(`/tasks/${taskId}/auto-match-cans`, { rules })
 
 export const updateTaskItem = (taskId: number, itemId: number, data: TaskItem) =>
   api.put(`/tasks/${taskId}/items/${itemId}`, data)
