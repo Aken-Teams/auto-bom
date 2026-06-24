@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, ArrowRight, Search } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Search, HelpCircle } from 'lucide-react'
 import clsx from 'clsx'
 import type { BomItem, TaskItem } from '../../api'
 
@@ -10,16 +10,25 @@ interface Props {
   onComplete: (selected: TaskItem[]) => void
 }
 
+// A unique BOM line is identified by item_no + component (原件 WAF) + alt_structure (替代结构):
+// the same item_no can map to multiple chip components, and the same item_no + component
+// can still carry different replacement structures — each combination is a distinct line.
+// Mirrors the alt value sent downstream in handleNext (max_alt_structure || alt_structure).
+const lineKey = (item: BomItem) =>
+  `${item.item_no}||${item.component || ''}||${item.max_alt_structure || item.alt_structure || ''}`
+
 export default function StepFilter({ items, onBack, onComplete }: Props) {
   const { t } = useTranslation()
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [showHelp, setShowHelp] = useState(false)
 
-  // Deduplicate by item_no
+  // Deduplicate by item_no + component (keep every distinct chip line)
   const uniqueItems = useMemo(() => {
     const map = new Map<string, BomItem>()
     for (const item of items) {
-      if (!map.has(item.item_no)) map.set(item.item_no, item)
+      const k = lineKey(item)
+      if (!map.has(k)) map.set(k, item)
     }
     return Array.from(map.values())
   }, [items])
@@ -40,20 +49,20 @@ export default function StepFilter({ items, onBack, onComplete }: Props) {
     if (selected.size === filtered.length) {
       setSelected(new Set())
     } else {
-      setSelected(new Set(filtered.map((i) => i.item_no)))
+      setSelected(new Set(filtered.map(lineKey)))
     }
   }
 
-  const toggle = (itemNo: string) => {
+  const toggle = (key: string) => {
     const next = new Set(selected)
-    if (next.has(itemNo)) next.delete(itemNo)
-    else next.add(itemNo)
+    if (next.has(key)) next.delete(key)
+    else next.add(key)
     setSelected(next)
   }
 
   const handleNext = () => {
     const selectedItems: TaskItem[] = uniqueItems
-      .filter((i) => selected.has(i.item_no))
+      .filter((i) => selected.has(lineKey(i)))
       .map((i) => ({
         item_no: i.item_no,
         summary: i.summary,
@@ -72,7 +81,30 @@ export default function StepFilter({ items, onBack, onComplete }: Props) {
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-slate-800 mb-1">{t('filter.title')}</h2>
+      <div className="flex items-center gap-1.5 mb-1">
+        <h2 className="text-xl font-semibold text-slate-800">{t('filter.title')}</h2>
+        <div className="relative">
+          <button
+            type="button"
+            aria-label={t('filter.helpTitle')}
+            onClick={() => setShowHelp((v) => !v)}
+            className="text-slate-400 hover:text-primary-600 transition-colors"
+          >
+            <HelpCircle size={18} />
+          </button>
+          {showHelp && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setShowHelp(false)} />
+              <div className="absolute left-0 top-7 z-20 w-80 rounded-lg border border-slate-200 bg-white p-4 shadow-lg">
+                <p className="mb-1.5 text-sm font-semibold text-slate-800">{t('filter.helpTitle')}</p>
+                <p className="whitespace-pre-line text-xs leading-relaxed text-slate-600">
+                  {t('filter.helpBody')}
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
       <p className="text-sm text-slate-500 mb-4">{t('filter.desc')}</p>
 
       <div className="flex items-center gap-3 mb-4">
@@ -108,17 +140,20 @@ export default function StepFilter({ items, onBack, onComplete }: Props) {
                 <th className="text-left px-3 py-2.5 font-medium text-slate-600">{t('filter.family')}</th>
                 <th className="text-left px-3 py-2.5 font-medium text-slate-600">{t('filter.package')}</th>
                 <th className="text-left px-3 py-2.5 font-medium text-slate-600">{t('filter.component')}</th>
+                <th className="text-left px-3 py-2.5 font-medium text-slate-600">{t('filter.altStructure')}</th>
                 <th className="text-left px-3 py-2.5 font-medium text-slate-600 max-w-[200px]">{t('filter.summary')}</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((item) => (
+              {filtered.map((item) => {
+                const key = lineKey(item)
+                return (
                 <tr
-                  key={item.item_no}
-                  onClick={() => toggle(item.item_no)}
+                  key={key}
+                  onClick={() => toggle(key)}
                   className={clsx(
                     'cursor-pointer border-t border-slate-100 transition-colors',
-                    selected.has(item.item_no)
+                    selected.has(key)
                       ? 'bg-primary-50'
                       : 'hover:bg-slate-50',
                   )}
@@ -126,7 +161,7 @@ export default function StepFilter({ items, onBack, onComplete }: Props) {
                   <td className="px-3 py-2">
                     <input
                       type="checkbox"
-                      checked={selected.has(item.item_no)}
+                      checked={selected.has(key)}
                       readOnly
                       className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                     />
@@ -136,9 +171,11 @@ export default function StepFilter({ items, onBack, onComplete }: Props) {
                   <td className="px-3 py-2">{item.family}</td>
                   <td className="px-3 py-2">{item.package}</td>
                   <td className="px-3 py-2 font-mono text-xs">{item.component}</td>
+                  <td className="px-3 py-2 font-mono text-xs">{item.max_alt_structure || item.alt_structure}</td>
                   <td className="px-3 py-2 text-xs text-slate-500 max-w-[200px] truncate">{item.summary}</td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>

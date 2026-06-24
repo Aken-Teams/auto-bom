@@ -48,6 +48,9 @@
     "family": "FAMILY",
     "package": "PACKAGE",
     "component": "Component",
+    "altStructure": "Alt Structure",
+    "helpTitle": "Item Mapping",
+    "helpBody": "• One item no. can map to multiple chip components (Component / WAF), and the same component may carry different replacement structures.\n• Each row is keyed by item no. + component + replacement structure, so the same item no. may appear several times — each row is a distinct combination.\n• Every selected row is carried independently into BOM generation and is never merged.",
     "prev": "Previous",
     "next": "Next"
   },
