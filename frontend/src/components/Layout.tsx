@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Outlet, NavLink } from 'react-router-dom'
+import { Outlet, NavLink, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Plus, History, Globe, Check, ChevronDown } from 'lucide-react'
 import clsx from 'clsx'
@@ -50,12 +50,16 @@ export default function Layout() {
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <Link
+            to="/"
+            className="flex items-center gap-3 rounded-lg -mx-1 px-1 hover:opacity-80 transition-opacity"
+            aria-label={t('app.title')}
+          >
             <img src="/logo.png" alt="Auto-BOM" className="w-9 h-9" />
             <h1 className="text-lg font-semibold text-slate-900 leading-tight">
               {t('app.title')}
             </h1>
-          </div>
+          </Link>
 
           <nav className="flex items-center gap-2">
             {link('/', t('nav.newTask'), Plus)}
