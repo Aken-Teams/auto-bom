@@ -69,6 +69,8 @@
       "add": "新增规则",
       "remove": "删除",
       "valuePlaceholder": "值，如 _R1_",
+      "regexHint": "如 _R[12]_",
+      "regexTip": "正则表达式：如 _R[12]_ 表示 R1 或 R2；^MB 表示以 MB 开头",
       "field": {
         "item_no": "料号",
         "type_name": "TYPE",
@@ -89,6 +91,12 @@
     "weldCan": "焊接罐头",
     "moldCan": "成型罐头",
     "packCan": "包装罐头",
+    "filterText": "筛选...",
+    "filterAll": "全部",
+    "filterBlank": "（未匹配）",
+    "clearFilters": "清除筛选",
+    "showing": "显示 {{shown}} / {{total}}",
+    "noMatch": "无符合条件的料号",
     "prev": "上一步",
     "next": "生成清单"
   },

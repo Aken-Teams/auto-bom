@@ -69,6 +69,8 @@
       "add": "Add rule",
       "remove": "Remove",
       "valuePlaceholder": "value, e.g. _R1_",
+      "regexHint": "e.g. _R[12]_",
+      "regexTip": "Regular expression: _R[12]_ matches R1 or R2; ^MB matches starts-with MB",
       "field": {
         "item_no": "Item No.",
         "type_name": "TYPE",
@@ -89,6 +91,12 @@
     "weldCan": "Welding Can",
     "moldCan": "Molding Can",
     "packCan": "Packaging Can",
+    "filterText": "Filter...",
+    "filterAll": "All",
+    "filterBlank": "(Unmatched)",
+    "clearFilters": "Clear filters",
+    "showing": "Showing {{shown}} / {{total}}",
+    "noMatch": "No matching items",
     "prev": "Previous",
     "next": "Export List"
   },
