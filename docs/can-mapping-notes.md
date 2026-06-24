@@ -105,6 +105,14 @@
   - **切割**：摘要 = `ERG EGPP-70` 之类，**按晶片（function/supplier + mil）**——唯一还要确认确切来源字段。
   - 注意部门用繁体（切腳/貝維特/外包後），匹配时要做繁简归一。
   - **验证方式**：`data/` 的 3 个范本输出即对答案，可重现底稿→比对。
+- **✅ 已实现并验证（2026-06-24）**：`bom_generator.build_std_op_index` + `resolve_std_op` + 改写 `generate_sequences`。
+  - 用 `data/` 范本（C-CMAX导入清单3-3(1) + WXBMR004 + 罐头）整档回归比对答案：
+    - **排除切割（暂留空）→ 99.7% 正确**（1991 格仅 6 笔电镀边角不符）。
+    - 全部 12 工序：正确 91.4%、空白 181（主要切割）、错误 6。
+  - **仍待 USER**：
+    1. **切割**：晶片码（如 `ERG EGPP-70`）是 **TYPE 级对照**——同 family/原件、不同 TYPE 会对到不同晶片（FR3A→ERG、FR3D→UFG），数据推不出，**现暂留空**。需 USER 给「TYPE/料号 → 晶片码或 op_id」对照表。
+    2. **外包前**：答案用「通用外包前」代码最大者（669332），非按封装的「SMC 外包前」；规则待确认。
+    3. **电镀 6 笔边角**：少数 package/厂别变体未对上，待个案确认。
 
 ### 问题5：解析按「栏位位置」而非「表头名」，移动栏位会静默读错（限制，需 USER 知悉）
 - **现象/风险**：所有 Excel 解析都按**固定栏位位置**硬编码读取（非按表头名）。若上传档把某栏移动、或插入/删除栏位，后面所有栏位错位，系统会**照旧位置读到错数据**，**且不报错**，照样产出错误结果——比报错更难发现。
@@ -172,6 +180,7 @@
 | 罐头解析（分类焊接/成型/包装，修问题2） | `backend/app/services/excel_parser.py` → `parse_can_template` |
 | 通用罐头入库 + `GET /api/upload/can-options` | `backend/app/routes/upload.py` |
 | 自动匹配（焊接 WAF + 成型/包装规则，不持久化） | `backend/app/routes/tasks.py` → `auto_match_cans` |
+| sequences 标准作业ID 匹配（11 工序 99.7%，切割待 USER）| `backend/app/services/bom_generator.py` → `build_std_op_index` / `resolve_std_op` / `generate_sequences` |
 | 规则面板 + 每栏筛选 UI | `frontend/src/pages/steps/StepConfig.tsx` |
 | 自绘下拉组件（portal、限高滚动） | `frontend/src/components/Select.tsx` |
 | 数据表 `CanOption`（通用罐头）、`CanRule`（骨架未启用）| `backend/app/models/tables.py` |

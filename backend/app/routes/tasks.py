@@ -12,6 +12,7 @@ from app.config import UPLOAD_DIR, OUTPUT_DIR
 from app.models.tables import BomTask, BomTaskItem, CanTemplate, UploadRecord
 from app.services.bom_generator import (
     generate_cmax_list, generate_bom_loader, generate_routings, generate_sequences,
+    build_std_op_index,
 )
 from app.services.excel_parser import parse_std_operations
 
@@ -350,13 +351,10 @@ def generate_files(task_id: int, db: Session = Depends(get_db)):
         std_record = db.query(UploadRecord).filter_by(id=task.std_upload_id).first()
     if not std_record:
         std_record = db.query(UploadRecord).filter_by(file_type="std_operation").order_by(UploadRecord.uploaded_at.desc()).first()
-    std_ops = {}
+    std_index = build_std_op_index([])
     if std_record and std_record.file_path:
         std_ops_rows = parse_std_operations(std_record.file_path)
-        for op in std_ops_rows:
-            seq = op["seq"]
-            if seq not in std_ops:
-                std_ops[seq] = op["op_id"]
+        std_index = build_std_op_index(std_ops_rows)
 
         # Move std_ops file into task upload directory + link (skip if already bound)
         if task.std_upload_id != std_record.id:
@@ -369,9 +367,15 @@ def generate_files(task_id: int, db: Session = Depends(get_db)):
         task_output_dir = OUTPUT_DIR / f"task_{task_id}"
         task_output_dir.mkdir(exist_ok=True)
 
+        # WAF -> (supplier, mil) for the 切割 standard-operation lookup
+        can_lookup = {
+            c.waf_code: (c.supplier or "", c.mil or "")
+            for c in db.query(CanTemplate).all()
+        }
+
         bom_path = generate_bom_loader(item_dicts, task_output_dir)
         routing_path = generate_routings(item_dicts, task_output_dir)
-        sequence_path = generate_sequences(item_dicts, std_ops, task_output_dir)
+        sequence_path = generate_sequences(item_dicts, std_index, can_lookup, task_output_dir)
 
         task.output_bom_path = bom_path
         task.output_routing_path = routing_path

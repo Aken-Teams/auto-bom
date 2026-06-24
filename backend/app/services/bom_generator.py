@@ -397,10 +397,65 @@ _SEQ_STEPS = [
 ]
 
 
-def generate_sequences(items: list[dict], std_ops: dict, output_dir: Path) -> str:
+# 电镀工序: our (simplified) step name -> WXBMR004 部门 (some are traditional)
+_VENDOR_DEPT = {"贝维特": "貝維特", "佰润": "佰润", "欣捷": "欣捷"}
+
+
+def build_std_op_index(std_rows: list[dict]):
+    """Index WXBMR004 rows for operation-id resolution.
+
+    Returns (by_summary, by_dept):
+      by_summary: 摘要 -> op_id (first seen)
+      by_dept:    部门 -> list of (代码, 摘要, op_id)
+    """
+    by_summary: dict[str, object] = {}
+    by_dept: dict[str, list] = {}
+    for r in std_rows:
+        s = (r.get("summary") or "").strip()
+        d = (r.get("department") or "").strip()
+        oid = r.get("op_id")
+        code = str(r.get("code") or "")
+        if s and s not in by_summary:
+            by_summary[s] = oid
+        by_dept.setdefault(d, []).append((code, s, oid))
+    return by_summary, by_dept
+
+
+def resolve_std_op(index, dept, family, package, bop, supplier, mil):
+    """Resolve STANDARD_OPERATION_ID for one (item, operation) per the rules
+    reverse-engineered from the reference output (see docs/can-mapping-notes.md).
+
+    Returns the op_id, or None when it can't be determined (left blank).
+    """
+    by_summary, by_dept = index
+    if dept == "切割":
+        # Chip-specific: 摘要 like "ERG EGPP-70". The real key is a TYPE-level chip
+        # table that can't be derived from current data (same family/component can
+        # map to different chips). Left BLANK pending USER's chip mapping —
+        # blank is safer than a wrong STANDARD_OPERATION_ID for ERP import.
+        # (supplier/mil are accepted for a future best-effort but unused for now.)
+        _ = (supplier, mil)
+        return None
+    if dept == "外包前":
+        # Generic 外包前 (摘要 == "外包前"); pick the largest 代码 (matches answer).
+        cands = sorted((c, oid) for c, s, oid in by_dept.get("外包前", []) if s == "外包前")
+        return cands[-1][1] if cands else None
+    if dept in _VENDOR_DEPT:
+        # 电镀: match within the vendor's 部门 by package, 摘要 like "SMC 電鍍-..."
+        for _code, s, oid in by_dept.get(_VENDOR_DEPT[dept], []):
+            if s.startswith(f"{package} 電鍍"):
+                return oid
+        return None
+    # Family operations (焊接/成型/切脚/Burning/外包后/TMTT/FQC):
+    # 摘要 == "{family} {工序} {BOP}M"
+    return by_summary.get(f"{family} {dept} {bop}M")
+
+
+def generate_sequences(items: list[dict], std_index, can_lookup: dict, output_dir: Path) -> str:
     """Generate sequences-raw Excel file (99 columns, 12 operations per item).
 
-    std_ops: dict mapping (seq_num, summary_keyword) -> standard_operation_id
+    std_index: result of build_std_op_index(WXBMR004 rows)
+    can_lookup: {waf_code: (supplier, mil)} used for the 切割 lookup
     """
     wb = Workbook()
     ws = wb.active
@@ -423,9 +478,14 @@ def generate_sequences(items: list[dict], std_ops: dict, output_dir: Path) -> st
             continue
         seen.add(key)
 
+        family = item.get("family", "") or ""
+        package = item.get("package", "") or ""
+        bop = alt[:3] if alt else ""
+        supplier, mil = can_lookup.get(item.get("component", ""), ("", ""))
+
         for seq_num, dept_code in _SEQ_STEPS:
-            # Lookup standard operation ID from std_ops dict
-            std_op_id = std_ops.get(seq_num, "")
+            # Resolve standard operation ID per reverse-engineered rules
+            std_op_id = resolve_std_op(std_index, dept_code, family, package, bop, supplier, mil)
 
             ws.cell(row=row_idx, column=4, value=seq_num)                        # OPERATION_SEQ_NUM
             if std_op_id:
