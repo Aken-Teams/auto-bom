@@ -63,7 +63,7 @@
     "unmatched": "{{count}} unmatched",
     "rules": {
       "title": "Can Matching Rules",
-      "weldInfo": "Welding can: auto-matched one-to-one by WAF code, no setup needed",
+      "weldInfo": "Welding can: auto-matched by function + mil (from alt structure), no setup needed",
       "mold": "Molding can (general)",
       "pack": "Packaging can (general; pick by rule when multiple)",
       "add": "Add rule",

@@ -91,6 +91,10 @@
 - **已验证**：`WAF108425_CP` 确实不在罐头档焊接清单内；档内有一个 `mil=68` 的焊接罐 `WAF109296_CP`。
 - **推断**：焊接真正的匹配键是 **mil 值（由替代结构 `ACP_68 → 68`）**，而非原件 WAF。这正是「未匹配 267」的根因 —— 现行用 WAF 精确匹配，凡原件 WAF 不在档内（仅 ~28 个）的料号全空。
 - **复杂点**：同一 mil 可能有多个焊接罐候选（档内 70mil、100mil 各有 2 个，function 不同），光靠 mil 无法唯一确定，**很可能是 mil + function**。
+- **✅ 已破解并实现（2026-06-24）**：用答案 `pj_bom_loader 3.3`（seq20=焊接罐）逆推，焊接罐 = **`(function, mil)`**，mil 来自替代结构 `ACP_xx` 的数字（同 mil 多 WAF 共用同一焊接罐；84mil 的 EURG84/SKY84 靠 function 区分）。
+  - 全量比对答案：**焊接 174/174 = 100%**（旧的 WAF 精确匹配仅 30%、其余空白）。
+  - 已把 `auto_match_cans` 的焊接匹配从 WAF 改为 (function, mil)，HTTP 端到端验证：WAF 不在罐头表的料号（ER3E/MB310/FR3J）现在也 100% 正确填上。
+  - 同时确认：**成型=SMC_MD0015 全套 100%、包装 by R1/R2 100%**（与答案一致）。
 
 ### 问题4：sequences 工序 → 标准作业ID 匹配缺口（未决，需 USER 确认）
 - **现象**：生成的 `sequences-raw` 里 `STANDARD_OPERATION_ID` 栏，12 道工序只填了 3 道、且都是同一个错值，其余 9 道空白。
@@ -179,7 +183,7 @@
 |------|------|
 | 罐头解析（分类焊接/成型/包装，修问题2） | `backend/app/services/excel_parser.py` → `parse_can_template` |
 | 通用罐头入库 + `GET /api/upload/can-options` | `backend/app/routes/upload.py` |
-| 自动匹配（焊接 WAF + 成型/包装规则，不持久化） | `backend/app/routes/tasks.py` → `auto_match_cans` |
+| 自动匹配（焊接 by function+mil → 100% + 成型/包装规则） | `backend/app/routes/tasks.py` → `auto_match_cans` / `_mil_digits` |
 | sequences 标准作业ID 匹配（11 工序 99.7%，切割待 USER）| `backend/app/services/bom_generator.py` → `build_std_op_index` / `resolve_std_op` / `generate_sequences` |
 | 规则面板 + 每栏筛选 UI | `frontend/src/pages/steps/StepConfig.tsx` |
 | 自绘下拉组件（portal、限高滚动） | `frontend/src/components/Select.tsx` |

@@ -84,6 +84,12 @@ class CanMatchRequest(BaseModel):
 _RULE_FIELDS = {"item_no", "type_name", "family", "package", "component"}
 
 
+def _mil_digits(s) -> str:
+    """Extract the numeric mil from a value like 'ACP_70' / 'EURG84' -> '70' / '84'."""
+    m = re.search(r"\d+", str(s or ""))
+    return m.group() if m else ""
+
+
 def _rule_matches(rule: CanRuleIn, item: BomTaskItem) -> bool:
     if rule.match_op == "all":
         return True
@@ -251,7 +257,25 @@ def auto_match_cans(task_id: int, req: CanMatchRequest | None = None, db: Sessio
         raise HTTPException(404, "Task not found")
 
     items = db.query(BomTaskItem).filter_by(task_id=task_id).all()
-    templates = {t.waf_code: t for t in db.query(CanTemplate).all()}
+
+    # Weld can is matched by (function, mil) — NOT by WAF code. mil comes from the
+    # 替代结构 number (ACP_70 -> 70). Same mil shares one weld can across WAFs;
+    # the 84mil case (EURG84/SKY84) is disambiguated by function.
+    weld_by_fm: dict[tuple[str, str], str] = {}
+    weld_by_m: dict[str, set] = {}
+    for t in db.query(CanTemplate).all():
+        if not t.weld_can:
+            continue
+        m = _mil_digits(t.mil)
+        weld_by_fm[(t.function or "", m)] = t.weld_can
+        weld_by_m.setdefault(m, set()).add(t.weld_can)
+
+    def _weld_for(item) -> str | None:
+        mil = _mil_digits(item.alt_structure)
+        if (item.function or "", mil) in weld_by_fm:
+            return weld_by_fm[(item.function or "", mil)]
+        cands = weld_by_m.get(mil)
+        return next(iter(cands)) if cands and len(cands) == 1 else None
 
     rules = req.rules if req else []
     mold_rules = [r for r in rules if r.can_type == "mold"]
@@ -262,9 +286,10 @@ def auto_match_cans(task_id: int, req: CanMatchRequest | None = None, db: Sessio
     matched_pack = 0
     unmatched = []
     for item in items:
-        # Weld: exact WAF match
-        if item.component and item.component in templates and templates[item.component].weld_can:
-            item.weld_can = templates[item.component].weld_can
+        # Weld: by (function, mil)
+        weld = _weld_for(item)
+        if weld:
+            item.weld_can = weld
             matched_weld += 1
         else:
             unmatched.append(item.item_no)
