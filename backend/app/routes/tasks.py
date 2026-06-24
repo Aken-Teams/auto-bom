@@ -344,7 +344,12 @@ def generate_files(task_id: int, db: Session = Depends(get_db)):
 
     # Build std_ops lookup: seq_num -> first matching op_id
     # Note: proper matching requires domain logic (chip size for 切割, family for others)
-    std_record = db.query(UploadRecord).filter_by(file_type="std_operation").order_by(UploadRecord.uploaded_at.desc()).first()
+    # Prefer the std file already bound to this task (linked at upload); else latest.
+    std_record = None
+    if task.std_upload_id:
+        std_record = db.query(UploadRecord).filter_by(id=task.std_upload_id).first()
+    if not std_record:
+        std_record = db.query(UploadRecord).filter_by(file_type="std_operation").order_by(UploadRecord.uploaded_at.desc()).first()
     std_ops = {}
     if std_record and std_record.file_path:
         std_ops_rows = parse_std_operations(std_record.file_path)
@@ -353,11 +358,12 @@ def generate_files(task_id: int, db: Session = Depends(get_db)):
             if seq not in std_ops:
                 std_ops[seq] = op["op_id"]
 
-        # Move std_ops file into task upload directory
-        task_upload_dir = UPLOAD_DIR / f"task_{task_id}"
-        task_upload_dir.mkdir(exist_ok=True)
-        _move_upload_file(db, std_record.id, task_upload_dir)
-        task.std_upload_id = std_record.id
+        # Move std_ops file into task upload directory + link (skip if already bound)
+        if task.std_upload_id != std_record.id:
+            task_upload_dir = UPLOAD_DIR / f"task_{task_id}"
+            task_upload_dir.mkdir(exist_ok=True)
+            _move_upload_file(db, std_record.id, task_upload_dir)
+            task.std_upload_id = std_record.id
 
     try:
         task_output_dir = OUTPUT_DIR / f"task_{task_id}"

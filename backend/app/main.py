@@ -4,9 +4,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
-from app.database import engine, Base
+from app.database import engine, Base, SessionLocal
 from app.models.tables import *  # noqa: F401, F403
 from app.routes import upload, tasks, can_rules
+from app.services.cleanup import cleanup_orphan_uploads
 
 logging.basicConfig(level=logging.INFO)
 
@@ -18,6 +19,12 @@ async def lifespan(app: FastAPI):
     with engine.connect() as conn:
         conn.execute(text("SELECT 1"))
     logging.getLogger(__name__).info("DB connection pool warmed up")
+    # GC orphaned uploads left by abandoned wizard flows
+    db = SessionLocal()
+    try:
+        cleanup_orphan_uploads(db)
+    finally:
+        db.close()
     yield
 
 

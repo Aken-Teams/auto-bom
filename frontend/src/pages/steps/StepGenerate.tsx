@@ -66,7 +66,7 @@ export default function StepGenerate({ taskId, items, onBack, onError }: Props) 
           result={stdResult}
           onError={onError}
           onUpload={async (file) => {
-            const res = await uploadStdOps(file)
+            const res = await uploadStdOps(file, taskId)
             setStdResult({ filename: res.data.filename, row_count: res.data.row_count })
           }}
         />

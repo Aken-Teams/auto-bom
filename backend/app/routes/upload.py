@@ -4,11 +4,11 @@ import time
 import logging
 from datetime import datetime
 from pathlib import Path
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.config import UPLOAD_DIR
-from app.models.tables import UploadRecord, CanTemplate, CanOption
+from app.models.tables import UploadRecord, CanTemplate, CanOption, BomTask
 from app.services.excel_parser import parse_bom_base, parse_can_template
 
 log = logging.getLogger(__name__)
@@ -105,11 +105,17 @@ def upload_can_template(file: UploadFile = File(...), db: Session = Depends(get_
 
 
 @router.post("/std-operations")
-def upload_std_operations(file: UploadFile = File(...), db: Session = Depends(get_db)):
+def upload_std_operations(
+    file: UploadFile = File(...),
+    task_id: int | None = Form(None),
+    db: Session = Depends(get_db),
+):
     """Upload WXBMR004 standard operations file.
 
     Saves file and does lightweight validation only.
     Full parsing happens on-demand during file generation.
+    If task_id is given, the file is moved into the task folder and linked
+    immediately, so it is cleaned up when the task is deleted (no orphans).
     """
     t0 = time.time()
     if not file.filename.endswith((".xlsx", ".xls")):
@@ -143,6 +149,23 @@ def upload_std_operations(file: UploadFile = File(...), db: Session = Depends(ge
     db.add(record)
     db.commit()
     db.refresh(record)
+
+    # Bind to the task right away: move into its folder + link, so deleting the
+    # task removes this file too (avoids orphans if user never generates).
+    if task_id:
+        task = db.query(BomTask).filter_by(id=task_id).first()
+        if task:
+            task_dir = UPLOAD_DIR / f"task_{task_id}"
+            task_dir.mkdir(exist_ok=True)
+            new_path = task_dir / save_path.name
+            try:
+                shutil.move(str(save_path), str(new_path))
+                record.file_path = str(new_path)
+            except OSError:
+                pass  # keep original location if move fails
+            task.std_upload_id = record.id
+            db.commit()
+
     log.info(f"[std-ops] db write: {time.time()-t2:.2f}s | total: {time.time()-t0:.2f}s")
 
     return {"id": record.id, "filename": record.filename, "row_count": total_rows}

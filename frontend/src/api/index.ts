@@ -103,9 +103,10 @@ export const uploadBomBase = (file: File) => {
   )
 }
 
-export const uploadStdOps = (file: File) => {
+export const uploadStdOps = (file: File, taskId?: number) => {
   const fd = new FormData()
   fd.append('file', file)
+  if (taskId != null) fd.append('task_id', String(taskId))
   return api.post<{ id: number; filename: string; row_count: number }>(
     '/upload/std-operations',
     fd,

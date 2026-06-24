@@ -3,6 +3,7 @@ from pathlib import Path
 from datetime import datetime
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+from openpyxl.utils import get_column_letter
 
 
 HEADER_FONT = Font(name="Microsoft YaHei", bold=True, size=10, color="FFFFFF")
@@ -14,6 +15,26 @@ THIN_BORDER = Border(
     top=Side(style="thin"),
     bottom=Side(style="thin"),
 )
+HEADER_ALIGN = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+
+def _style_header_row(ws, headers, min_w=10, max_w=30):
+    """Apply consistent header styling + sensible column widths + freeze the
+    header row. Header TEXT is left untouched (must match ERP import format);
+    this only adjusts formatting so columns are readable and not truncated.
+    """
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col)
+        cell.font = HEADER_FONT
+        cell.fill = HEADER_FILL
+        cell.alignment = HEADER_ALIGN
+        cell.border = THIN_BORDER
+        letter = get_column_letter(col)
+        text = "" if header is None else str(header)
+        longest = max((len(line) for line in text.split("\n")), default=0)
+        ws.column_dimensions[letter].width = min(max(longest + 2, min_w), max_w)
+    ws.row_dimensions[1].height = 34
+    ws.freeze_panes = "A2"
 
 
 def _style_header(ws, headers: list[str]):
@@ -197,11 +218,8 @@ def generate_bom_loader(items: list[dict], output_dir: Path) -> str:
 
     # Write headers
     for col, header in enumerate(_BOM_HEADERS, 1):
-        cell = ws.cell(row=1, column=col, value=header)
-        cell.font = HEADER_FONT
-        cell.fill = HEADER_FILL
-        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        cell.border = THIN_BORDER
+        ws.cell(row=1, column=col, value=header)
+    _style_header_row(ws, _BOM_HEADERS)
 
     row_idx = 2
     for item in items:
@@ -248,10 +266,6 @@ def generate_bom_loader(items: list[dict], output_dir: Path) -> str:
         if pack:
             _write_bom_row(80, pack)
 
-    # Auto-width for key columns
-    for col_letter in ["B", "C", "D", "E", "Q", "R", "S"]:
-        ws.column_dimensions[col_letter].width = 25
-
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     filepath = output_dir / f"pj_bom_loader_{ts}.xlsx"
     wb.save(str(filepath))
@@ -294,6 +308,7 @@ def generate_routings(items: list[dict], output_dir: Path) -> str:
     # Write headers
     for col, header in enumerate(_ROUTING_HEADERS, 1):
         ws.cell(row=1, column=col, value=header)
+    _style_header_row(ws, _ROUTING_HEADERS)
 
     seen = set()
     row_idx = 2
@@ -394,6 +409,7 @@ def generate_sequences(items: list[dict], std_ops: dict, output_dir: Path) -> st
     # Write headers
     for col, header in enumerate(_SEQ_HEADERS, 1):
         ws.cell(row=1, column=col, value=header)
+    _style_header_row(ws, _SEQ_HEADERS)
 
     now = datetime.now()
     seen = set()
