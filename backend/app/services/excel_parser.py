@@ -1,6 +1,18 @@
 """Parse uploaded Excel files (BOM base, standard operations)."""
+from datetime import datetime, time
 from pathlib import Path
 from openpyxl import load_workbook
+
+
+def _unit_usage(v):
+    """单位用量 (col 19) is stored date-formatted: 1 -> datetime(1900,1,1), 0 -> time(0,0)."""
+    if isinstance(v, datetime):
+        return 1
+    if isinstance(v, time):
+        return 0
+    if v in (0, 1):
+        return v
+    return None
 
 
 def parse_bom_base(file_path: str) -> list[dict]:
@@ -31,6 +43,7 @@ def parse_bom_base(file_path: str) -> list[dict]:
             "seq_no": str(vals[12] or "") if len(vals) > 12 else "",
             "component": str(vals[13] or "") if len(vals) > 13 else "",
             "component_summary": str(vals[14] or "") if len(vals) > 14 else "",
+            "unit_usage": _unit_usage(vals[18]) if len(vals) > 18 else None,
         })
     return items
 
@@ -137,6 +150,7 @@ def parse_item_list(file_path: str) -> list[dict]:
             "seq_no": str(vals[12] or "") if len(vals) > 12 else "",
             "component": str(vals[13] or "") if len(vals) > 13 else "",
             "component_summary": str(vals[14] or "") if len(vals) > 14 else "",
+            "unit_usage": _unit_usage(vals[18]) if len(vals) > 18 else None,
         })
     return items
 

@@ -75,6 +75,7 @@ export default function StepFilter({ items, onBack, onComplete }: Props) {
         alt_structure: i.max_alt_structure || i.alt_structure,
         component: i.component,
         component_summary: i.component_summary,
+        unit_usage: i.unit_usage,
       }))
     onComplete(selectedItems)
   }

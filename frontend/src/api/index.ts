@@ -19,6 +19,7 @@ export interface BomItem {
   component?: string
   component_summary?: string
   bom_note?: string
+  unit_usage?: number | null
 }
 
 export interface TaskItem {
@@ -37,6 +38,7 @@ export interface TaskItem {
   weld_can?: string
   mold_can?: string
   pack_can?: string
+  unit_usage?: number | null
 }
 
 export interface Task {

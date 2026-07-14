@@ -40,6 +40,7 @@ def _item_to_dict(i: BomTaskItem) -> dict:
         "function": i.function, "component": i.component,
         "component_summary": i.component_summary,
         "weld_can": i.weld_can, "mold_can": i.mold_can, "pack_can": i.pack_can,
+        "unit_usage": i.unit_usage,
     }
 
 
@@ -64,6 +65,7 @@ class TaskItemCreate(BaseModel):
     weld_can: str | None = None
     mold_can: str | None = None
     pack_can: str | None = None
+    unit_usage: int | None = None
 
 
 class CanRuleIn(BaseModel):
@@ -224,6 +226,7 @@ def get_task(task_id: int, db: Session = Depends(get_db)):
                 "weld_can": i.weld_can,
                 "mold_can": i.mold_can,
                 "pack_can": i.pack_can,
+                "unit_usage": i.unit_usage,
             }
             for i in items
         ],

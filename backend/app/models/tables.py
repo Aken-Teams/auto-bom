@@ -55,6 +55,7 @@ class BomTaskItem(Base):
     weld_can: Mapped[str] = mapped_column(String(100), nullable=True, comment="焊接罐头")
     mold_can: Mapped[str] = mapped_column(String(100), nullable=True, comment="成型罐头")
     pack_can: Mapped[str] = mapped_column(String(100), nullable=True, comment="包装罐头")
+    unit_usage: Mapped[int] = mapped_column(Integer, nullable=True, comment="单位用量 0/1")
 
 
 class CanTemplate(Base):

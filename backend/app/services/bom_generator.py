@@ -222,22 +222,22 @@ def generate_bom_loader(items: list[dict], output_dir: Path) -> str:
         ws.cell(row=1, column=col, value=header)
     _style_header_row(ws, _BOM_HEADERS)
 
-    row_idx = 2
+    # 客户规则: 同一「料号 + MAX替代结构」若有多个 WAF 晶片 -> 每个 WAF 各一行(序10)，
+    # 数量保留一个=1其余=0；焊接/成型/包装罐头只保留一行(序20/30/80)。
+    groups: dict = {}
     for item in items:
-        item_no = item.get("item_no", "")
-        alt = item.get("alt_structure", "")
-        max_a = _max_alt(alt)
-        component = item.get("component", "")
-        weld = item.get("weld_can", "")
-        mold = item.get("mold_can", "")
-        pack = item.get("pack_can", "")
-        package = item.get("package", "")
+        key = (item.get("item_no", ""), _max_alt(item.get("alt_structure", "")))
+        groups.setdefault(key, []).append(item)
 
+    row_idx = 2
+    for (item_no, max_a), grp in groups.items():
+        first = grp[0]
+        alt = first.get("alt_structure", "")
+        package = first.get("package", "")
         bop = alt[:3] if alt else ""
         process_spec = f"{bop}_{package}(MAX)" if bop and package else ""
         bom_name = f"{item_no}_{max_a}" if item_no and max_a else item_no
 
-        # BOM row template: [col2=item, col3=alt, col4=seq, col5=comp, col6=qty, col7=yield, ..., col17=BOP, col18=PSPEC, col19=BNAME]
         def _write_bom_row(seq, comp, qty=1):
             nonlocal row_idx
             ws.cell(row=row_idx, column=2, value=item_no)
@@ -251,21 +251,25 @@ def generate_bom_loader(items: list[dict], output_dir: Path) -> str:
             ws.cell(row=row_idx, column=19, value=bom_name)
             row_idx += 1
 
-        # seq 10: 切割 - WAF component
-        if component:
-            _write_bom_row(10, component, 1)
+        # seq 10: 每个不重复 WAF 晶片各一行; 数量: 单位用量(若有)否则第一个=1其余=0
+        seen_waf = set()
+        wafs = []
+        for g in grp:
+            c = g.get("component", "")
+            if c and c not in seen_waf:
+                seen_waf.add(c)
+                wafs.append((c, g.get("unit_usage")))
+        for i, (waf, uu) in enumerate(wafs):
+            qty = uu if uu in (0, 1) else (1 if i == 0 else 0)
+            _write_bom_row(10, waf, qty)
 
-        # seq 20: 焊接罐头
-        if weld:
-            _write_bom_row(20, weld)
-
-        # seq 30: 成型罐头
-        if mold:
-            _write_bom_row(30, mold)
-
-        # seq 80: 包装罐头
-        if pack:
-            _write_bom_row(80, pack)
+        # seq 20/30/80: 罐头各只一行(取组内第一个, 同组罐头一致)
+        if first.get("weld_can"):
+            _write_bom_row(20, first["weld_can"], 1)
+        if first.get("mold_can"):
+            _write_bom_row(30, first["mold_can"], 1)
+        if first.get("pack_can"):
+            _write_bom_row(80, first["pack_can"], 1)
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     filepath = output_dir / f"pj_bom_loader_{ts}.xlsx"
