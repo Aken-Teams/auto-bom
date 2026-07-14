@@ -106,17 +106,18 @@
   - **焊接/成型/切脚/Burning/外包后/TMTT/FQC**：摘要 = **`{family} {工序} {BOP}M`**（如 `ESM-30H 焊接 ACPM`；family=底稿 family，BOP=替代结构前3位）。
   - **电镀（贝维特/佰润/欣捷）**：摘要 = `{package} 電鍍-{厂别}/{package}/5um`，**按 package（SMC）匹配**。
   - **外包前**：摘要固定 `外包前`（与料号无关）。
-  - **切割**：摘要 = `ERG EGPP-70` 之类，**按晶片（function/supplier + mil）**——唯一还要确认确切来源字段。
+  - **切割**：摘要 = `ERG EGPP-70` 之类，**按晶片（function + mil）**。
   - 注意部门用繁体（切腳/貝維特/外包後），匹配时要做繁简归一。
   - **验证方式**：`data/` 的 3 个范本输出即对答案，可重现底稿→比对。
-- **✅ 已实现并验证（2026-06-24）**：`bom_generator.build_std_op_index` + `resolve_std_op` + 改写 `generate_sequences`。
-  - 用 `data/` 范本（C-CMAX导入清单3-3(1) + WXBMR004 + 罐头）整档回归比对答案：
-    - **排除切割（暂留空）→ 99.7% 正确**（1991 格仅 6 笔电镀边角不符）。
-    - 全部 12 工序：正确 91.4%、空白 181（主要切割）、错误 6。
-  - **仍待 USER**：
-    1. **切割**：晶片码（如 `ERG EGPP-70`）是 **TYPE 级对照**——同 family/原件、不同 TYPE 会对到不同晶片（FR3A→ERG、FR3D→UFG），数据推不出，**现暂留空**。需 USER 给「TYPE/料号 → 晶片码或 op_id」对照表。
-    2. **外包前**：答案用「通用外包前」代码最大者（669332），非按封装的「SMC 外包前」；规则待确认。
-    3. **电镀 6 笔边角**：少数 package/厂别变体未对上，待个案确认。
+- **✅ 已实现并验证**：`bom_generator.build_std_op_index` + `resolve_std_op` + 改写 `generate_sequences`。
+  - 焊接/成型/切脚/Burning/外包后/TMTT/FQC（家族规则）+ 电镀（package）→ 排除切割约 99.7%。
+- **🔒 客户已确认规则（2026-06-25）并实作**：
+  1. **切割**：`function + WAF mil`（mil 取自替代结构 ACP_xx 数字）。function→切割前缀（SUPER/FAST→ERG、GENERAL→GPP、SKY→SKY、ULTRA→UFG）。
+     - **ERP 安全闸**：仅当 function 推得前缀 == 原件供应商（原件摘要第1段）时才填，**不一致→留空**（例外）。
+     - 回归比对答案：**正确 162 / 留空 19 / 错误 0**（约 89.5%，零错误）。
+     - **19 笔例外**（FR3/UF 系列等，同 function/mil/供应商却不同晶片）→ 见《切割工序-例外待客户确认.docx》，待 USER 给 TYPE 级对照。
+  2. **外包前**：**所有 package 用代码 6000**（op_id 669332）→ 范本 **100%**。
+  - **仍待 USER**：切割 19 笔例外（第 1 点）；电镀 5um/8um 少数个案（如 MURC3J 需 8um）。
 
 ### 问题5：解析按「栏位位置」而非「表头名」，移动栏位会静默读错（限制，需 USER 知悉）
 - **现象/风险**：所有 Excel 解析都按**固定栏位位置**硬编码读取（非按表头名）。若上传档把某栏移动、或插入/删除栏位，后面所有栏位错位，系统会**照旧位置读到错数据**，**且不报错**，照样产出错误结果——比报错更难发现。
@@ -164,12 +165,9 @@
 若有「**料号 → 正确的焊接/成型/包装罐**」对照范例（哪怕几十笔），我们可直接拿系统产出比对，最快确保逻辑做对。
 
 ### F. 标准作业ID（sequences 工序，对应问题4）
-1. 12 道工序各自的 `STANDARD_OPERATION_ID` 怎么从 WXBMR004 取？
-   - 切割（seq10）：按**晶片大小**？晶片大小从料号哪个字段取（替代结构 mil？family？）____
-   - 焊接~TMTT（seq20~80）：按 **family**？还是别的？____
-   - 贝维特/佰润/欣捷（电镀 seq61/63/68）：是否为**固定值**（与料号无关）？____
-2. WXBMR004 里哪一栏是「工序号」、哪一栏是要取的 op_id？（现行解析疑似取错栏）____
-3. 同样最好给一份「**料号 + 工序 → 正确 op_id**」对照范例当对答案。
+> 大部分工序规则已确定（家族规则 + 电镀 package）；切割 / 外包前 客户已确认（2026-06-25）。仅剩：
+1. **切割 19 笔例外**：同 function/mil/供应商却不同晶片（FR3/UF 系列），function+mil 无法唯一判定。请给「TYPE → 切割晶片码 / op_id」对照。（详见《切割工序-例外待客户确认.docx》）____
+2. **电镀 5um/8um**：哪些料号用 8um（如 MURC3J）而非默认 5um？____
 
 ### G. 上传档栏位顺序（对应问题5）
 1. 上传的 Excel（BOM底稿/罐头/标准作业）栏位顺序与数量，**是否保证每次都和范本一致、不会移动/增删**？ [ ] 是　[ ] 否
@@ -184,7 +182,7 @@
 | 罐头解析（分类焊接/成型/包装，修问题2） | `backend/app/services/excel_parser.py` → `parse_can_template` |
 | 通用罐头入库 + `GET /api/upload/can-options` | `backend/app/routes/upload.py` |
 | 自动匹配（焊接 by function+mil → 100% + 成型/包装规则） | `backend/app/routes/tasks.py` → `auto_match_cans` / `_mil_digits` |
-| sequences 标准作业ID 匹配（11 工序 99.7%，切割待 USER）| `backend/app/services/bom_generator.py` → `build_std_op_index` / `resolve_std_op` / `generate_sequences` |
+| sequences 标准作业ID 匹配（切割 function+mil、外包前 6000，客户已确认）| `backend/app/services/bom_generator.py` → `build_std_op_index` / `resolve_std_op` / `generate_sequences` |
 | 规则面板 + 每栏筛选 UI | `frontend/src/pages/steps/StepConfig.tsx` |
 | 自绘下拉组件（portal、限高滚动） | `frontend/src/components/Select.tsx` |
 | 数据表 `CanOption`（通用罐头）、`CanRule`（骨架未启用）| `backend/app/models/tables.py` |

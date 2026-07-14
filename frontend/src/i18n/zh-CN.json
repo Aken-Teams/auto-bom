@@ -6,7 +6,31 @@
   "nav": {
     "newTask": "新建任务",
     "history": "历史记录",
+    "platingRules": "电镀规则",
     "settings": "设置"
+  },
+  "plating": {
+    "title": "电镀膜厚规则",
+    "desc": "设定哪些料号的电镀膜厚为 8um（预设 5um）。规则在生成作业序列时套用。",
+    "hint": "规则逻辑：料号的「摘要」或「料号」若包含指定关键字，其电镀（贝维特/佰润/欣捷）即采用目标膜厚；多条规则任一命中即成立。例：摘要 包含 S021 → 8um。",
+    "field": "字段",
+    "fields": { "summary": "摘要", "item_no": "料号" },
+    "contains": "包含",
+    "valueCol": "匹配关键字（包含）",
+    "target": "目标膜厚",
+    "valuePlaceholder": "关键字，如 S021",
+    "add": "新增规则",
+    "remove": "删除",
+    "empty": "尚无规则（全部料号预设 5um）",
+    "noMatch": "无符合条件的规则",
+    "search": "搜索关键字...",
+    "allFields": "全部字段",
+    "allUm": "全部膜厚",
+    "count": "共 {{count}} 条",
+    "pageInfo": "{{page}} / {{total}}",
+    "save": "保存规则",
+    "saved": "规则已保存",
+    "saveFailed": "保存失败"
   },
   "lang": {
     "zh-CN": "简体中文",

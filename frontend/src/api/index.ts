@@ -128,6 +128,16 @@ export const getCanOptions = () => api.get<CanOption[]>('/upload/can-options')
 
 export const getCanRules = () => api.get<CanRule[]>('/can-rules')
 
+// Electroplating thickness (5um/8um) rules
+export interface PlatingRule {
+  id?: number
+  match_field: string // summary | item_no
+  match_value: string
+  target_um: number // 5 | 8
+}
+export const getPlatingRules = () => api.get<PlatingRule[]>('/plating-rules')
+export const savePlatingRules = (rules: PlatingRule[]) => api.put('/plating-rules', rules)
+
 export const getUploadRecords = () => api.get('/upload/records')
 
 // Tasks
@@ -144,6 +154,10 @@ export const getTask = (id: number) => api.get<Task>(`/tasks/${id}`)
 
 export const addTaskItems = (taskId: number, items: TaskItem[]) =>
   api.post(`/tasks/${taskId}/items`, items)
+
+// Replace all items of a task (persists manual edits made after auto-match)
+export const replaceTaskItems = (taskId: number, items: TaskItem[]) =>
+  api.put(`/tasks/${taskId}/items`, items)
 
 export const autoMatchCans = (taskId: number, rules: CanRule[] = []) =>
   api.post<{

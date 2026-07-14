@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from app.database import engine, Base, SessionLocal
 from app.models.tables import *  # noqa: F401, F403
-from app.routes import upload, tasks, can_rules
+from app.routes import upload, tasks, can_rules, plating_rules
 from app.services.cleanup import cleanup_orphan_uploads
 
 logging.basicConfig(level=logging.INFO)
@@ -45,6 +45,7 @@ app.add_middleware(
 app.include_router(upload.router)
 app.include_router(tasks.router)
 app.include_router(can_rules.router)
+app.include_router(plating_rules.router)
 
 
 @app.get("/api/health")

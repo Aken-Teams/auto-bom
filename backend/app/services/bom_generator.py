@@ -1,4 +1,5 @@
 """Generate output Excel files: C-CMAX import list + 3 ERP upload files."""
+import re
 from pathlib import Path
 from datetime import datetime
 from openpyxl import Workbook
@@ -400,6 +401,10 @@ _SEQ_STEPS = [
 # 电镀工序: our (simplified) step name -> WXBMR004 部门 (some are traditional)
 _VENDOR_DEPT = {"贝维特": "貝維特", "佰润": "佰润", "欣捷": "欣捷"}
 
+# 切割工序: 客户规则 = 按 (function 功能别 + WAF mil) 判断。
+# function -> 切割摘要前缀（如「ERG EGPP-70」的 ERG）。少数 TYPE 为例外，无法用此规则判定。
+_CUT_PREFIX = {"SUPER": "ERG", "FAST": "ERG", "GENERAL": "GPP", "SKY": "SKY", "ULTRA": "UFG"}
+
 
 def build_std_op_index(std_rows: list[dict]):
     """Index WXBMR004 rows for operation-id resolution.
@@ -421,41 +426,68 @@ def build_std_op_index(std_rows: list[dict]):
     return by_summary, by_dept
 
 
-def resolve_std_op(index, dept, family, package, bop, supplier, mil):
-    """Resolve STANDARD_OPERATION_ID for one (item, operation) per the rules
-    reverse-engineered from the reference output (see docs/can-mapping-notes.md).
+def plating_um(item: dict, rules) -> str:
+    """Electroplating thickness for an item: default '5', promoted by user rules.
 
+    rules: list of {match_field: summary|item_no, match_value, target_um}.
+    """
+    for r in rules or []:
+        field = item.get("summary", "") if r.get("match_field") == "summary" else item.get("item_no", "")
+        val = r.get("match_value") or ""
+        if val and val in (field or ""):
+            return str(r.get("target_um", 8))
+    return "5"
+
+
+def resolve_std_op(index, dept, family, package, bop, function, supplier, mil, um="5"):
+    """Resolve STANDARD_OPERATION_ID for one (item, operation).
+
+    Rules confirmed by the customer (2026-06-25):
+      切割   -> 按 (function 功能别 + WAF mil) 判断
+      外包前 -> 所有 package 均用 代码 6000
+    Other operations reverse-engineered from the reference (see docs).
     Returns the op_id, or None when it can't be determined (left blank).
     """
     by_summary, by_dept = index
     if dept == "切割":
-        # Chip-specific: 摘要 like "ERG EGPP-70". The real key is a TYPE-level chip
-        # table that can't be derived from current data (same family/component can
-        # map to different chips). Left BLANK pending USER's chip mapping —
-        # blank is safer than a wrong STANDARD_OPERATION_ID for ERP import.
-        # (supplier/mil are accepted for a future best-effort but unused for now.)
-        _ = (supplier, mil)
+        # 客户规则: (function, WAF mil)。function -> 切割摘要前缀 (ERG/UFG/GPP/SKY)。
+        # ERP 安全闸: 仅当 function 推得的前缀 与 原件实际供应商一致时才填；
+        # 不一致 = 例外 TYPE（如 FR3D、UF 系列），无法唯一判定 -> 留空（不乱填）。
+        prefix = _CUT_PREFIX.get((function or "").strip().upper())
+        if prefix and prefix == (supplier or "").strip() and mil:
+            for _code, s, oid in by_dept.get("切割", []):
+                if s.startswith(prefix + " ") and s.endswith("-" + str(mil)):
+                    return oid
         return None
     if dept == "外包前":
-        # Generic 外包前 (摘要 == "外包前"); pick the largest 代码 (matches answer).
-        cands = sorted((c, oid) for c, s, oid in by_dept.get("外包前", []) if s == "外包前")
-        return cands[-1][1] if cands else None
-    if dept in _VENDOR_DEPT:
-        # 电镀: match within the vendor's 部门 by package, 摘要 like "SMC 電鍍-..."
-        for _code, s, oid in by_dept.get(_VENDOR_DEPT[dept], []):
-            if s.startswith(f"{package} 電鍍"):
+        # 客户规则: 所有 package 均用 代码 6000。
+        for code, _s, oid in by_dept.get("外包前", []):
+            if str(code) == "6000":
                 return oid
+        return None
+    if dept in _VENDOR_DEPT:
+        # 电镀: 部门=厂别, 摘要如 "SMC 電鍍-貝維特/SMC/5um"; 按 package + 膜厚(um) 匹配
+        rows = by_dept.get(_VENDOR_DEPT[dept], [])
+        for _code, s, oid in rows:
+            if s.startswith(f"{package} 電鍍") and s.rstrip().endswith(f"{um}um"):
+                return oid
+        # 找不到指定膜厚时回退到 5um（安全默认，避免留空）
+        if um != "5":
+            for _code, s, oid in rows:
+                if s.startswith(f"{package} 電鍍") and s.rstrip().endswith("5um"):
+                    return oid
         return None
     # Family operations (焊接/成型/切脚/Burning/外包后/TMTT/FQC):
     # 摘要 == "{family} {工序} {BOP}M"
     return by_summary.get(f"{family} {dept} {bop}M")
 
 
-def generate_sequences(items: list[dict], std_index, can_lookup: dict, output_dir: Path) -> str:
+def generate_sequences(items: list[dict], std_index, can_lookup: dict, output_dir: Path, plating_rules=None) -> str:
     """Generate sequences-raw Excel file (99 columns, 12 operations per item).
 
     std_index: result of build_std_op_index(WXBMR004 rows)
     can_lookup: {waf_code: (supplier, mil)} used for the 切割 lookup
+    plating_rules: user rules deciding electroplating thickness (5um/8um)
     """
     wb = Workbook()
     ws = wb.active
@@ -481,11 +513,19 @@ def generate_sequences(items: list[dict], std_index, can_lookup: dict, output_di
         family = item.get("family", "") or ""
         package = item.get("package", "") or ""
         bop = alt[:3] if alt else ""
-        supplier, mil = can_lookup.get(item.get("component", ""), ("", ""))
+        function = item.get("function", "") or ""
+        # 供应商取自原件摘要第1段（用于切割前缀安全闸）
+        cs = (item.get("component_summary", "") or "").split("/")
+        supplier = cs[0].strip() if cs else ""
+        # 切割 mil 取自「替代结构」数字（ACP_55 -> 55），随替代结构变（同料号多替代结构各自不同）
+        mm = re.search(r"\d+", alt or "")
+        cut_mil = mm.group() if mm else ""
+        # 电镀膜厚: 默认 5um, 由用户规则决定是否 8um
+        um = plating_um(item, plating_rules)
 
         for seq_num, dept_code in _SEQ_STEPS:
-            # Resolve standard operation ID per reverse-engineered rules
-            std_op_id = resolve_std_op(std_index, dept_code, family, package, bop, supplier, mil)
+            # Resolve standard operation ID
+            std_op_id = resolve_std_op(std_index, dept_code, family, package, bop, function, supplier, cut_mil, um)
 
             ws.cell(row=row_idx, column=4, value=seq_num)                        # OPERATION_SEQ_NUM
             if std_op_id:

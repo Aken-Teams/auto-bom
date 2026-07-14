@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.config import UPLOAD_DIR, OUTPUT_DIR
-from app.models.tables import BomTask, BomTaskItem, CanTemplate, UploadRecord
+from app.models.tables import BomTask, BomTaskItem, CanTemplate, PlatingRule, UploadRecord
 from app.services.bom_generator import (
     generate_cmax_list, generate_bom_loader, generate_routings, generate_sequences,
     build_std_op_index,
@@ -244,13 +244,33 @@ def add_items(task_id: int, items: list[TaskItemCreate], db: Session = Depends(g
     return {"added": len(items), "total": task.item_count}
 
 
+@router.put("/{task_id}/items")
+def replace_items(task_id: int, items: list[TaskItemCreate], db: Session = Depends(get_db)):
+    """Replace ALL items of a task with the given list.
+
+    Used to persist manual edits made in 配置罐头 after auto-match (which already
+    created the task + items). Without this, edits would only live in the frontend
+    and the generated files (built from DB rows) would use the pre-edit values.
+    """
+    task = db.query(BomTask).filter_by(id=task_id).first()
+    if not task:
+        raise HTTPException(404, "Task not found")
+
+    db.query(BomTaskItem).filter_by(task_id=task_id).delete()
+    for item_data in items:
+        db.add(BomTaskItem(task_id=task_id, **item_data.model_dump()))
+    task.item_count = len(items)
+    db.commit()
+    return {"total": len(items)}
+
+
 @router.post("/{task_id}/auto-match-cans")
 def auto_match_cans(task_id: int, req: CanMatchRequest | None = None, db: Session = Depends(get_db)):
     """Auto-match 罐头 for all items in a task.
 
     - 焊接罐 (weld): matched one-to-one by WAF code (CanTemplate).
     - 成型/包装罐 (mold/pack): assigned by user-defined rules (general cans).
-      The provided rules are also persisted globally for next time.
+      Rules are applied per-request and intentionally NOT persisted.
     """
     task = db.query(BomTask).filter_by(id=task_id).first()
     if not task:
@@ -397,10 +417,15 @@ def generate_files(task_id: int, db: Session = Depends(get_db)):
             c.waf_code: (c.supplier or "", c.mil or "")
             for c in db.query(CanTemplate).all()
         }
+        # 电镀 5um/8um 用户规则
+        plating_rules = [
+            {"match_field": r.match_field, "match_value": r.match_value, "target_um": r.target_um}
+            for r in db.query(PlatingRule).order_by(PlatingRule.sort_order, PlatingRule.id).all()
+        ]
 
         bom_path = generate_bom_loader(item_dicts, task_output_dir)
         routing_path = generate_routings(item_dicts, task_output_dir)
-        sequence_path = generate_sequences(item_dicts, std_index, can_lookup, task_output_dir)
+        sequence_path = generate_sequences(item_dicts, std_index, can_lookup, task_output_dir, plating_rules)
 
         task.output_bom_path = bom_path
         task.output_routing_path = routing_path

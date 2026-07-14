@@ -6,7 +6,31 @@
   "nav": {
     "newTask": "New Task",
     "history": "History",
+    "platingRules": "Plating Rules",
     "settings": "Settings"
+  },
+  "plating": {
+    "title": "Electroplating Thickness Rules",
+    "desc": "Define which items use 8um plating (default 5um). Rules apply when generating the sequences file.",
+    "hint": "Rule logic: if an item's Summary or Item No. contains the keyword, its electroplating (贝维特/佰润/欣捷) uses the target thickness. Any matching rule applies. e.g. Summary contains S021 → 8um.",
+    "field": "Field",
+    "fields": { "summary": "Summary", "item_no": "Item No." },
+    "contains": "contains",
+    "valueCol": "Keyword (contains)",
+    "target": "Target",
+    "valuePlaceholder": "keyword, e.g. S021",
+    "add": "Add rule",
+    "remove": "Remove",
+    "empty": "No rules yet (all items default to 5um)",
+    "noMatch": "No matching rules",
+    "search": "Search keyword...",
+    "allFields": "All fields",
+    "allUm": "All thickness",
+    "count": "{{count}} total",
+    "pageInfo": "{{page}} / {{total}}",
+    "save": "Save rules",
+    "saved": "Rules saved",
+    "saveFailed": "Save failed"
   },
   "lang": {
     "zh-CN": "简体中文",

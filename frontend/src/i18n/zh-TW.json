@@ -6,7 +6,31 @@
   "nav": {
     "newTask": "新建任務",
     "history": "歷史記錄",
+    "platingRules": "電鍍規則",
     "settings": "設定"
+  },
+  "plating": {
+    "title": "電鍍膜厚規則",
+    "desc": "設定哪些料號的電鍍膜厚為 8um（預設 5um）。規則在產生作業序列時套用。",
+    "hint": "規則邏輯：料號的「摘要」或「料號」若包含指定關鍵字，其電鍍（貝維特/佰潤/欣捷）即採用目標膜厚；多條規則任一命中即成立。例：摘要 包含 S021 → 8um。",
+    "field": "欄位",
+    "fields": { "summary": "摘要", "item_no": "料號" },
+    "contains": "包含",
+    "valueCol": "匹配關鍵字（包含）",
+    "target": "目標膜厚",
+    "valuePlaceholder": "關鍵字，如 S021",
+    "add": "新增規則",
+    "remove": "刪除",
+    "empty": "尚無規則（全部料號預設 5um）",
+    "noMatch": "無符合條件的規則",
+    "search": "搜尋關鍵字...",
+    "allFields": "全部欄位",
+    "allUm": "全部膜厚",
+    "count": "共 {{count}} 條",
+    "pageInfo": "{{page}} / {{total}}",
+    "save": "儲存規則",
+    "saved": "規則已儲存",
+    "saveFailed": "儲存失敗"
   },
   "lang": {
     "zh-CN": "简体中文",

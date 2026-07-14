@@ -106,6 +106,21 @@ class CanRule(Base):
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
 
+class PlatingRule(Base):
+    """User-defined rule for electroplating film thickness (5um / 8um).
+
+    Default is 5um; a matching rule promotes an item to the target thickness.
+    e.g. 摘要 包含 'S021' -> 8um; 料号 包含 '-AU' -> 8um.
+    """
+    __tablename__ = "plating_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    match_field: Mapped[str] = mapped_column(String(20), default="summary", comment="summary(摘要) | item_no(料号)")
+    match_value: Mapped[str] = mapped_column(String(200), comment="包含的关键字")
+    target_um: Mapped[int] = mapped_column(Integer, default=8, comment="目标膜厚 um (5 或 8)")
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class StdOperation(Base):
     """Standard operation lookup from WXBMR004."""
     __tablename__ = "std_operations"

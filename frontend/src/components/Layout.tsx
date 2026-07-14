@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Outlet, NavLink, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Plus, History, Globe, Check, ChevronDown } from 'lucide-react'
+import { Plus, History, Globe, Check, ChevronDown, SlidersHorizontal } from 'lucide-react'
 import clsx from 'clsx'
 
 const langs = ['zh-CN', 'zh-TW', 'en'] as const
@@ -64,6 +64,7 @@ export default function Layout() {
           <nav className="flex items-center gap-2">
             {link('/', t('nav.newTask'), Plus)}
             {link('/history', t('nav.history'), History)}
+            {link('/plating-rules', t('nav.platingRules'), SlidersHorizontal)}
 
             {/* Language Switcher */}
             <div className="ml-4 pl-4 border-l border-slate-200 relative" ref={langRef}>

@@ -1,1 +1,1 @@
-from app.models.tables import UploadRecord, BomTask, BomTaskItem, CanTemplate, CanOption, CanRule
+from app.models.tables import UploadRecord, BomTask, BomTaskItem, CanTemplate, CanOption, CanRule, PlatingRule
