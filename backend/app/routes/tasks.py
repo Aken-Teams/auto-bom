@@ -281,24 +281,45 @@ def auto_match_cans(task_id: int, req: CanMatchRequest | None = None, db: Sessio
 
     items = db.query(BomTaskItem).filter_by(task_id=task_id).all()
 
-    # Weld can is matched by (function, mil) — NOT by WAF code. mil comes from the
-    # 替代结构 number (ACP_70 -> 70). Same mil shares one weld can across WAFs;
-    # the 84mil case (EURG84/SKY84) is disambiguated by function.
+    # Weld can matching (priority order):
+    #   1. By (function, mil) — the client's authoritative rule. mil comes from the
+    #      替代结构 (ACP_70 -> 70); the 84mil case (EURG84/SKY84) is split by function.
+    #      This must win over WAF: an item can carry a component WAF whose own mil
+    #      differs from the alternate-structure mil it is used under (e.g. MB520's
+    #      ACP_68M branch uses WAF110633 — a 72mil chip — yet its weld is the 68mil
+    #      DW0164, not WAF110633's own DW0166). The weld follows the branch mil, not
+    #      the WAF.
+    #   2. By a lone mil candidate — when function is unknown but the mil is unique.
+    #   3. By WAF (原件) — LAST resort, for cans whose function/mil labels don't line
+    #      up with the import list at all (e.g. MOS: item FUNCTION=MOSFET / mil 128
+    #      vs can FUNCTION=MOS / mil 102.35, but the WAF WAF110725 matches exactly).
+    # A new 罐头 upload CLEARS CanTemplate (see upload.py), so the table only ever holds
+    # the current package's cans — no cross-package weld can be picked.
+    weld_by_waf: dict[str, str] = {}
     weld_by_fm: dict[tuple[str, str], str] = {}
     weld_by_m: dict[str, set] = {}
     for t in db.query(CanTemplate).all():
         if not t.weld_can:
             continue
+        if t.waf_code:
+            weld_by_waf[t.waf_code] = t.weld_can
         m = _mil_digits(t.mil)
         weld_by_fm[(t.function or "", m)] = t.weld_can
         weld_by_m.setdefault(m, set()).add(t.weld_can)
 
     def _weld_for(item) -> str | None:
+        # 1. exact (function, mil)
         mil = _mil_digits(item.alt_structure)
         if (item.function or "", mil) in weld_by_fm:
             return weld_by_fm[(item.function or "", mil)]
+        # 2. lone mil candidate
         cands = weld_by_m.get(mil)
-        return next(iter(cands)) if cands and len(cands) == 1 else None
+        if cands and len(cands) == 1:
+            return next(iter(cands))
+        # 3. WAF (原件) fallback — labels don't align but the chip identifies the weld
+        if item.component and item.component in weld_by_waf:
+            return weld_by_waf[item.component]
+        return None
 
     rules = req.rules if req else []
     mold_rules = [r for r in rules if r.can_type == "mold"]

@@ -68,14 +68,14 @@ def upload_can_template(file: UploadFile = File(...), db: Session = Depends(get_
     templates = parsed["weld"]
     options = parsed["options"]
 
-    # Upsert weld templates (matched by WAF code)
+    # Replace ALL weld templates with the current file's catalog.
+    # Each upload represents "this case uses this 罐头", so the table must only ever
+    # hold the current package's cans. Accumulating across uploads mixed SMC/SMB/MOS
+    # welds and caused cross-package mis-matches (e.g. an SMB item picking an SMC weld
+    # because both shared function+mil). Clearing on upload removes that at the source.
+    db.query(CanTemplate).delete()
     for t in templates:
-        existing = db.query(CanTemplate).filter_by(waf_code=t["waf_code"]).first()
-        if existing:
-            for k, v in t.items():
-                setattr(existing, k, v)
-        else:
-            db.add(CanTemplate(**t))
+        db.add(CanTemplate(**t))
 
     # Replace general can options (mold/pack) with the current file's catalog
     db.query(CanOption).delete()
