@@ -92,6 +92,15 @@ def _mil_digits(s) -> str:
     return m.group() if m else ""
 
 
+# Item FUNCTION -> weld-description prefix family (固定模板 can disambiguation).
+# The ERG family (SUPER/FAST/GENERAL/ULTRA) shares the "EURG" weld prefix; SKY is
+# its own. Used only when a mil is shared by two prefixes (e.g. 84mil EURG vs SKY).
+_WELD_PREFIX = {
+    "SUPER": "EURG", "FAST": "EURG", "GENERAL": "EURG", "ULTRA": "EURG",
+    "SKY": "SKY",
+}
+
+
 def _rule_matches(rule: CanRuleIn, item: BomTaskItem) -> bool:
     if rule.match_op == "all":
         return True
@@ -298,6 +307,7 @@ def auto_match_cans(task_id: int, req: CanMatchRequest | None = None, db: Sessio
     weld_by_waf: dict[str, str] = {}
     weld_by_fm: dict[tuple[str, str], str] = {}
     weld_by_m: dict[str, set] = {}
+    weld_by_pm: dict[tuple[str, str], str] = {}  # (前缀, mil) — 固定模板 can
     for t in db.query(CanTemplate).all():
         if not t.weld_can:
             continue
@@ -306,6 +316,9 @@ def auto_match_cans(task_id: int, req: CanMatchRequest | None = None, db: Sessio
         m = _mil_digits(t.mil)
         weld_by_fm[(t.function or "", m)] = t.weld_can
         weld_by_m.setdefault(m, set()).add(t.weld_can)
+        pm = re.search(r"([A-Za-z]+)_[\d.]+MIL", t.weld_desc or "")
+        if pm:
+            weld_by_pm[(pm.group(1), m)] = t.weld_can
 
     def _weld_for(item) -> str | None:
         # 1. exact (function, mil)
@@ -316,7 +329,14 @@ def auto_match_cans(task_id: int, req: CanMatchRequest | None = None, db: Sessio
         cands = weld_by_m.get(mil)
         if cands and len(cands) == 1:
             return next(iter(cands))
-        # 3. WAF (原件) fallback — labels don't align but the chip identifies the weld
+        # 3. (前缀, mil) — 固定模板 can has no function column; the weld's prefix
+        #    (EURG/SKY/...) lives in its description. Map the item FUNCTION to that
+        #    prefix family to disambiguate mils shared by two prefixes (e.g. 84mil
+        #    EURG vs SKY): SUPER/FAST/GENERAL/ULTRA -> EURG, SKY -> SKY.
+        pref = _WELD_PREFIX.get((item.function or "").upper())
+        if pref and (pref, mil) in weld_by_pm:
+            return weld_by_pm[(pref, mil)]
+        # 4. WAF (原件) fallback — labels don't align but the chip identifies the weld
         if item.component and item.component in weld_by_waf:
             return weld_by_waf[item.component]
         return None
